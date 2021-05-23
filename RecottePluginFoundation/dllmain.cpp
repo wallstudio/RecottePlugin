@@ -1,19 +1,57 @@
 ﻿#define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
+#include <vector>
+#include <filesystem>
+
 
 HINSTANCE hLibMine;
 HINSTANCE hLib;
 FARPROC p[51];
 
+std::vector<HINSTANCE> g_Plugins;
+
 void OnAttach()
 {
 	OutputDebugStringA("ProxyDLL loaded!");
 
-	// TODO: ここでPluginsを読み込む
+	auto pluginsDirectroy = std::filesystem::current_path().append("Plugins");
+	if (!std::filesystem::exists(pluginsDirectroy))
+	{
+		MessageBoxA(NULL, "Not found plugin directory.", "RecottePlugionFoundation", MB_OK);
+	}
+
+	for (auto pluginFile : std::filesystem::directory_iterator(pluginsDirectroy))
+	{
+		auto s = pluginFile.path().extension().string();
+		if (pluginFile.path().extension().string() != ".dll") continue;
+		if (pluginFile.path().filename().string() == "RecottePluginFoundation.dll") continue;
+		if (pluginFile.path().filename().string() == "d3d11.dll") continue;
+
+		auto plugin = LoadLibraryA(pluginFile.path().string().c_str());
+		if (plugin == nullptr) continue;
+
+		g_Plugins.push_back(plugin);
+
+		auto callback = reinterpret_cast<void (WINAPI*)(HINSTANCE)>(GetProcAddress(plugin, "OnPluginStart"));
+		if (callback != nullptr)
+		{
+			callback(hLibMine);
+		}
+	}
 }
 
 void OnDetach()
 {
+	for (auto plugin : g_Plugins)
+	{
+		auto callback = reinterpret_cast<void (WINAPI*)(HINSTANCE)>(GetProcAddress(plugin, "OnPluginFinish"));
+		if (callback != nullptr)
+		{
+			callback(hLibMine);
+		}
+
+		FreeLibrary(plugin);
+	}
 	OutputDebugStringA("ProxyDLL unloaded!");
 }
 
@@ -89,6 +127,8 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 
 extern "C"
 {
+	// NOTE: /O2 でないとアクセス違反になる
+
 	FARPROC PA = NULL;
 	int JMPtoAPI();
 	#pragma comment(linker, "/export:D3D11CreateDeviceForD3D12=PROXY_D3D11CreateDeviceForD3D12")

@@ -12,4 +12,5 @@ set PROJECT=%1
 set PROJECT=%PROJECT:"=%
 
 cmd /c mklink "d3d11.dll" "%PROJECT%\x64\Release\RecottePluginFoundation.dll"
+cmd /c mklink /d "Plugins" "%PROJECT%\x64\Release"
 pause
