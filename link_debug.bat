@@ -11,6 +11,8 @@ cd %RECOTTE%
 set PROJECT=%1
 set PROJECT=%PROJECT:"=%
 
-cmd /c mklink "d3d11.dll" "%PROJECT%\x64\Release\RecottePluginFoundation.dll"
-cmd /c mklink /d "Plugins" "%PROJECT%\x64\Release"
+cmd /c del /q "d3d11.dll"
+cmd /c del /q "Plugins"
+cmd /c mklink "d3d11.dll" "%PROJECT%\x64\Debug\RecottePluginFoundation.dll"
+cmd /c mklink /d "Plugins" "%PROJECT%\x64\Debug"
 pause

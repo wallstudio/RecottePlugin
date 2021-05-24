@@ -4,6 +4,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 VisualStudioVersion = 16.0.31229.75
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "RecottePluginFoundation", "RecottePluginFoundation\RecottePluginFoundation.vcxproj", "{72F0910E-CC73-438B-8640-BEDD1C8FB54A}"
+	ProjectSection(ProjectDependencies) = postProject
+		{BD148D62-9B16-4502-8A77-550D85429B48} = {BD148D62-9B16-4502-8A77-550D85429B48}
+	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "TestPlugin", "TestPlugin\TestPlugin.vcxproj", "{BD148D62-9B16-4502-8A77-550D85429B48}"
 	ProjectSection(ProjectDependencies) = postProject
