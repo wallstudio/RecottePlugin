@@ -38,6 +38,14 @@ HWND HookCreateWindowExW(
 	_In_opt_ LPVOID lpParam)
 {
 	OutputDebugStringW(fmt::format(L"[TestPlugin] CreateWindowExW: {0} / {1}\n", lpClassName != nullptr ? lpClassName : L"", lpWindowName != nullptr ? lpWindowName : L"").c_str());
+
+	auto parentText = std::wstring(256, L'\n');
+	GetWindowTextW(hWndParent, parentText.data(), parentText.size());
+	if (parentText == L"タイムライン")
+	{
+		OutputDebugStringW(L"[TestPlugin] TimelineChild");
+	}
+
 	auto base = RecottePluginFoundation::LookupFunction<CreateWindowExWCallback>("user32.dll", "CreateWindowExW");
 	if (base == nullptr)
 	{
