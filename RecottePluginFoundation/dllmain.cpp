@@ -127,8 +127,6 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 
 extern "C"
 {
-	// NOTE: /O2 でないとアクセス違反になる
-
 	FARPROC PA = NULL;
 	int JMPtoAPI();
 	#pragma comment(linker, "/export:D3D11CreateDeviceForD3D12=PROXY_D3D11CreateDeviceForD3D12")
