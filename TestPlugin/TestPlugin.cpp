@@ -2,6 +2,7 @@
 #include <Windows.h>
 #include <vector>
 #include <string>
+#include <set>
 #include <map>
 #include <fmt/format.h>
 #include <math.h>
@@ -10,7 +11,13 @@
 
 HWND timeline = nullptr;
 HWND timelineLabelList = nullptr;
-std::map<HWND, WNDPROC> g_OriginalProc = std::map<HWND, WNDPROC>();
+struct TimelneLabel
+{
+	bool Folding;
+	WNDPROC OriginalProc, BoxOriginalProc;
+	SIZE ActualSize;
+};
+std::map<HWND, TimelneLabel*> g_TimelLineLabelFoldings = std::map<HWND, TimelneLabel*>();
 
 
 HWND CreateWindowExW(
@@ -71,7 +78,40 @@ HWND CreateWindowExW(
 			timelineLabelList = hwnd;
 			break;
 		case 2:
-			SetWindowTextW(hwnd, L"Timeline_Main");
+			SetWindowTextW(hwnd, L"Timeline_Layers");
+			break;
+		case 3:
+			SetWindowTextW(hwnd, L"Timeline_VerticalScrollbar");
+			break;
+		case 4:
+			SetWindowTextW(hwnd, L"Timeline_HorizontalScrollbar");
+			break;
+		case 5:
+			SetWindowTextW(hwnd, L"Timeline_Unknown");
+			break;
+		case 6:
+			SetWindowTextW(hwnd, L"Timeline_Toolbar");
+			break;
+		}
+	}
+	else if (timeline != nullptr && hWndParent == timeline)
+	{
+		hwnd = base(dwExStyle, lpClassName, lpWindowName, dwStyle, X, Y, nWidth, nHeight, hWndParent, hMenu, hInstance, lpParam);
+
+		auto index = 0;
+		HWND prev = hwnd;
+		while (nullptr != (prev = GetNextWindow(prev, GW_HWNDPREV))) index++;
+		switch (index)
+		{
+		case 0:
+			SetWindowTextW(hwnd, L"Timeline_LabelHeader");
+			break;
+		case 1:
+			SetWindowTextW(hwnd, L"Timeline_LabelList");
+			timelineLabelList = hwnd;
+			break;
+		case 2:
+			SetWindowTextW(hwnd, L"Timeline_Layers");
 			break;
 		case 3:
 			SetWindowTextW(hwnd, L"Timeline_VerticalScrollbar");
@@ -89,21 +129,60 @@ HWND CreateWindowExW(
 	}
 	else if (timelineLabelList != nullptr && hWndParent == timelineLabelList)
 	{
-		hwnd = base(dwExStyle, lpClassName, lpWindowName, dwStyle, X, Y, nWidth, 10, hWndParent, hMenu, hInstance, lpParam);
+		hwnd = base(dwExStyle, lpClassName, lpWindowName, dwStyle, X, Y, nWidth, nHeight, hWndParent, hMenu, hInstance, lpParam);
 		SetWindowTextW(hwnd, L"TimelineLabelItem");
+		g_TimelLineLabelFoldings[hwnd] = new TimelneLabel{ .ActualSize = {nWidth, nHeight} };
 
-		WNDPROC hookProce = [](HWND h, UINT u, WPARAM w, LPARAM l) -> LRESULT
+		WNDPROC proc = [](HWND h, UINT u, WPARAM w, LPARAM l) -> LRESULT
 		{
 			if (u == WM_WINDOWPOSCHANGING)
 			{
 				auto params = reinterpret_cast<WINDOWPOS*>(l);
-				OutputDebugStringW(fmt::format(L"[TestPlugin] WM_SIZE ({0}x{1})", params->cx, params->cy).c_str());
-				params->cy = 10;
+				g_TimelLineLabelFoldings[h]->ActualSize = { params->cx, params->cy };
+				if (!g_TimelLineLabelFoldings[h]->Folding)
+				{
+					params->cy = 67;
+				}
 			}
-			return g_OriginalProc[h](h, u, w, l);
+			return g_TimelLineLabelFoldings[h]->OriginalProc(h, u, w, l);
 		};
-		g_OriginalProc[hwnd] = g_OriginalProc.count(hwnd) > 0 ? g_OriginalProc[hwnd] : reinterpret_cast<WNDPROC>(GetWindowLongPtrW(hwnd, GWLP_WNDPROC));
-		SetWindowLongPtrW(hwnd, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(hookProce));
+		g_TimelLineLabelFoldings[hwnd]->OriginalProc = reinterpret_cast<WNDPROC>(GetWindowLongPtrW(hwnd, GWLP_WNDPROC));
+		SetWindowLongPtrW(hwnd, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(proc));
+	}
+	else if (g_TimelLineLabelFoldings.contains(hWndParent))
+	{
+		hwnd = base(dwExStyle, lpClassName, lpWindowName, dwStyle, X, Y, nWidth, nHeight, hWndParent, hMenu, hInstance, lpParam);
+		
+		auto index = 0;
+		HWND prev = hwnd;
+		while (nullptr != (prev = GetNextWindow(prev, GW_HWNDPREV))) index++;
+		switch (index)
+		{
+		case 0:
+			SetWindowTextW(hwnd, L"Timeline_Label_Icon");
+			break;
+		case 1:
+			SetWindowTextW(hwnd, L"Timeline_Label_Box");
+			{
+				WNDPROC proc = [](HWND h, UINT u, WPARAM w, LPARAM l) -> LRESULT
+				{
+					auto label = GetParent(h);
+					if (u == WM_LBUTTONUP)
+					{
+						auto labelData = g_TimelLineLabelFoldings[label];
+						labelData->Folding = !labelData->Folding;
+						SetWindowPos(label, HWND_TOP, 0, 0, labelData->ActualSize.cx, labelData->ActualSize.cy, SWP_NOMOVE| SWP_NOOWNERZORDER);
+					}
+					return g_TimelLineLabelFoldings[label]->BoxOriginalProc(h, u, w, l);
+				};
+				g_TimelLineLabelFoldings[hWndParent]->BoxOriginalProc = reinterpret_cast<WNDPROC>(GetWindowLongPtrW(hwnd, GWLP_WNDPROC));
+				SetWindowLongPtrW(hwnd, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(proc));
+			}
+			break;
+		case 2:
+			SetWindowTextW(hwnd, L"Timeline_Label_Text");
+			break;
+		}
 	}
 	else
 	{
