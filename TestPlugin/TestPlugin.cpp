@@ -11,6 +11,7 @@
 
 HWND timeline = nullptr;
 HWND timelineLabelList = nullptr;
+HWND timelineLayers = nullptr;
 struct TimelneLabel
 {
 	bool Folding;
@@ -79,6 +80,7 @@ HWND CreateWindowExW(
 			break;
 		case 2:
 			SetWindowTextW(hwnd, L"Timeline_Layers");
+			timelineLayers = hwnd;
 			break;
 		case 3:
 			SetWindowTextW(hwnd, L"Timeline_VerticalScrollbar");
@@ -148,6 +150,39 @@ HWND CreateWindowExW(
 		};
 		g_TimelLineLabelFoldings[hwnd]->OriginalProc = reinterpret_cast<WNDPROC>(GetWindowLongPtrW(hwnd, GWLP_WNDPROC));
 		SetWindowLongPtrW(hwnd, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(proc));
+	}
+	else if (timelineLayers != nullptr && hWndParent == timelineLayers)
+	{
+		// Layer側はWindowではなくHDCで描かれている…
+		// データ探してきて再計算・再描画して上に描くしかない？
+
+		//hwnd = base(dwExStyle, lpClassName, lpWindowName, dwStyle, X, Y, nWidth, nHeight, hWndParent, hMenu, hInstance, lpParam);
+		//SetWindowTextW(hwnd, L"TimelineLayersItem");
+		//auto index = 0;
+		//HWND prev = hwnd;
+		//while (nullptr != (prev = GetNextWindow(prev, GW_HWNDPREV))) index++;
+		//auto label =  timelineLabelList
+		//for (size_t i = 0; i < index; i++)
+		//{
+
+		//}
+		//g_TimelLineLabelFoldings[hwnd] = new TimelneLabel{ .ActualSize = {nWidth, nHeight} };
+
+		//WNDPROC proc = [](HWND h, UINT u, WPARAM w, LPARAM l) -> LRESULT
+		//{
+		//	if (u == WM_WINDOWPOSCHANGING)
+		//	{
+		//		auto params = reinterpret_cast<WINDOWPOS*>(l);
+		//		g_TimelLineLabelFoldings[h]->ActualSize = { params->cx, params->cy };
+		//		if (!g_TimelLineLabelFoldings[h]->Folding)
+		//		{
+		//			params->cy = 67;
+		//		}
+		//	}
+		//	return g_TimelLineLabelFoldings[h]->OriginalProc(h, u, w, l);
+		//};
+		//g_TimelLineLabelFoldings[hwnd]->OriginalProc = reinterpret_cast<WNDPROC>(GetWindowLongPtrW(hwnd, GWLP_WNDPROC));
+		//SetWindowLongPtrW(hwnd, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(proc));
 	}
 	else if (g_TimelLineLabelFoldings.contains(hWndParent))
 	{
