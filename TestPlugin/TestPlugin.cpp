@@ -7,6 +7,7 @@
 #include <fmt/format.h>
 #include <math.h>
 #include "../HookHelper/HookHelper.h"
+#include "Gdip.h"
 
 
 HWND timeline = nullptr;
@@ -231,6 +232,11 @@ extern "C" __declspec(dllexport) void WINAPI OnPluginStart(HINSTANCE handle)
 {
 	OutputDebugStringW(L"[TestPlugin] OnPluginStart\n");
 	RecottePluginFoundation::OverrideImportFunction("user32.dll", "CreateWindowExW", CreateWindowExW);
+
+	for (auto funcInfo : GetOverrideFunctions())
+	{
+		RecottePluginFoundation::OverrideImportFunction(funcInfo.Module, funcInfo.FuncName, funcInfo.Func);
+	}
 }
 
 extern "C" __declspec(dllexport) void WINAPI OnPluginFinish(HINSTANCE haneld)

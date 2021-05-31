@@ -64,7 +64,7 @@ namespace RecottePluginFoundation
 				return nullptr;
 			}
 			auto function = GetProcAddress(module, functionName.c_str());
-			if (module == nullptr)
+			if (function == nullptr)
 			{
 				OutputDebugStringA(fmt::format("[TestPlugin] Not found function {0}\n", id).c_str());
 				return nullptr;
