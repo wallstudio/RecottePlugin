@@ -38,20 +38,7 @@ HWND CreateWindowExW(
 {
 	OutputDebugStringW(fmt::format(L"[TestPlugin] CreateWindowExW: {0} / {1}\n", lpClassName != nullptr ? lpClassName : L"", lpWindowName != nullptr ? lpWindowName : L"").c_str());
 
-	typedef HWND(WINAPI* Callback)(
-		_In_ DWORD dwExStyle,
-		_In_opt_ LPCWSTR lpClassName,
-		_In_opt_ LPCWSTR lpWindowName,
-		_In_ DWORD dwStyle,
-		_In_ int X,
-		_In_ int Y,
-		_In_ int nWidth,
-		_In_ int nHeight,
-		_In_opt_ HWND hWndParent,
-		_In_opt_ HMENU hMenu,
-		_In_opt_ HINSTANCE hInstance,
-		_In_opt_ LPVOID lpParam);
-	auto base = RecottePluginFoundation::LookupFunction<Callback>("user32.dll", "CreateWindowExW");
+	auto base = RecottePluginFoundation::LookupFunction<decltype(&CreateWindowExW)>("user32.dll", "CreateWindowExW");
 	if (base == nullptr)
 	{
 		return nullptr;
@@ -231,7 +218,7 @@ HWND CreateWindowExW(
 extern "C" __declspec(dllexport) void WINAPI OnPluginStart(HINSTANCE handle)
 {
 	OutputDebugStringW(L"[TestPlugin] OnPluginStart\n");
-	RecottePluginFoundation::OverrideImportFunction("user32.dll", "CreateWindowExW", CreateWindowExW);
+	//RecottePluginFoundation::OverrideImportFunction("user32.dll", "CreateWindowExW", CreateWindowExW);
 
 	for (auto funcInfo : GetOverrideFunctions())
 	{
