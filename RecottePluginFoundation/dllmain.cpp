@@ -12,7 +12,7 @@ std::vector<HINSTANCE> g_Plugins;
 
 void OnAttach()
 {
-	OutputDebugStringA("ProxyDLL loaded!");
+	OutputDebugStringA("ProxyDLL loaded!\n");
 
 	auto pluginsDirectroy = std::filesystem::current_path().append("Plugins");
 	if (!std::filesystem::exists(pluginsDirectroy))
@@ -52,7 +52,7 @@ void OnDetach()
 
 		FreeLibrary(plugin);
 	}
-	OutputDebugStringA("ProxyDLL unloaded!");
+	OutputDebugStringA("ProxyDLL unloaded!\n");
 }
 
 BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
