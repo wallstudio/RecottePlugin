@@ -11,6 +11,7 @@
 
 HWND TimelineWindow = nullptr;
 HWND TimelineWidnowLabels = nullptr;
+HWND TimelineMainWidnow = nullptr;
 struct TimelineLabelItemExSetting
 {
 	HWND Hwnd;
@@ -18,6 +19,7 @@ struct TimelineLabelItemExSetting
 	WNDPROC BoxOriginalProc;
 };
 std::map<HWND, TimelineLabelItemExSetting*> TimelineWidnowLabelsItems = std::map<HWND, TimelineLabelItemExSetting*>();
+
 
 void InjectInstructions();
 
@@ -42,6 +44,11 @@ HWND _CreateWindowExW(DWORD dwExStyle, LPCWSTR lpClassName, LPCWSTR lpWindowName
 		{
 			SetWindowTextW(hwnd, L"uh_Timeline_Labels");
 			TimelineWidnowLabels = hwnd;
+		}
+		else if (index == 2)
+		{
+			SetWindowTextW(hwnd, L"uh_Timeline_Main");
+			TimelineMainWidnow = hwnd; // WM_RBUTTONUPのコンテキストメニューにアクセスしたい…
 		}
 		return hwnd;
 	}
