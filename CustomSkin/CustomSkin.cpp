@@ -33,16 +33,55 @@ Gdiplus::GpStatus Hook_DrawTimeline_GdipGraphicsClear(Gdiplus::GpGraphics* graph
 	return Gdiplus::DllExports::GdipGraphicsClear(graphics, 0xffff1010);
 }
 
+void Hook_DrawTimeline_DrawLayerFoundation(void** drawInfo, float* xywh)
+{
+	using namespace RecottePluginFoundation;
+
+	auto graphics = (Gdiplus::GpGraphics**)drawInfo[29];
+	auto result = (Gdiplus::GpStatus*)&drawInfo[30];
+	auto fill = drawInfo[6];
+	if (fill)
+	{
+		auto brush = *Offset<Gdiplus::GpSolidFill*>(*Offset<void*>(fill, 16), 8);
+		Gdiplus::ARGB color;
+		Gdiplus::DllExports::GdipGetSolidFillColor(brush, &color);
+		color = (color & 0x00FFFFFF) | 0xAA000000; // スケスケ
+		Gdiplus::GpSolidFill* myBrush;
+		Gdiplus::DllExports::GdipCreateSolidFill(color, &myBrush);
+		*result = Gdiplus::DllExports::GdipFillRectangle(*graphics, myBrush, xywh[0], xywh[1], xywh[2], xywh[3]);
+		Gdiplus::DllExports::GdipDeleteBrush(myBrush);
+	}
+	auto noFill = drawInfo[5];
+	if (noFill)
+	{
+		auto pen = **Offset<Gdiplus::GpPen**>(noFill, 16);
+		*result = Gdiplus::DllExports::GdipDrawRectangle(*graphics, pen, xywh[0], xywh[1], xywh[2], xywh[3]);
+	}
+}
+
 extern "C" __declspec(dllexport) void WINAPI OnPluginStart(HINSTANCE handle)
 {
 	OutputDebugStringW(L"[CustomSkin] OnPluginStart\n");
 
-	RecottePluginFoundation::InjectInstructions((void*)0x00007FF6634CE7D1, &Hook_DrawTimeline_GdipGraphicsClear, 2, std::vector<unsigned char>
-	{
-		0x48, 0xB8, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // mov rax, 0FFFFFFFFFFFFFFFFh
-		0xFF, 0xD0, // call rax
-		0x90, // nop x3
-	});
+	RecottePluginFoundation::InjectInstructions(
+		(void*)0x00007FF6634CE7D1,
+		&Hook_DrawTimeline_GdipGraphicsClear, 2,
+		std::array<unsigned char, 13>
+		{
+			0x48, 0xB8, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // mov rax, 0FFFFFFFFFFFFFFFFh
+			0xFF, 0xD0, // call rax
+			0x90, // nops
+		});
+
+	RecottePluginFoundation::InjectInstructions(
+		(void*)0x00007FF6634CEA45,
+		&Hook_DrawTimeline_DrawLayerFoundation, 2,
+		std::array<unsigned char, 20>
+		{
+			0x48, 0xB8, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // mov rax, 0FFFFFFFFFFFFFFFFh
+			0xFF, 0xD0, // call rax
+			0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, // nops
+		});
 }
 
 extern "C" __declspec(dllexport) void WINAPI OnPluginFinish(HINSTANCE haneld)

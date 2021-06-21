@@ -28,5 +28,13 @@ namespace RecottePluginFoundation
 		return reinterpret_cast<TDelegate>(LookupFunction(moduleName, functionName));
 	}
 
-	void InjectInstructions(void* injecteeAddress, void* hookFunctionPtr, int hookFuncOperandOffset, std::vector<unsigned char> machineCode);
+	template<size_t Size>
+	void InjectInstructions(void* injecteeAddress, void* hookFunctionPtr, int hookFuncOperandOffset, std::array<unsigned char, Size> machineCode)
+	{
+		auto jmpAddress = (void**)&machineCode[hookFuncOperandOffset];
+		*jmpAddress = hookFunctionPtr;
+		DWORD oldProtection;
+		VirtualProtect(injecteeAddress, machineCode.size(), PAGE_EXECUTE_READWRITE, &oldProtection);
+		memcpy(injecteeAddress, machineCode.data(), machineCode.size());
+	}
 }

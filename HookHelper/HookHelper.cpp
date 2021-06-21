@@ -75,12 +75,4 @@ namespace RecottePluginFoundation
 		return baseFunctions[id];
 	}
 
-	void InjectInstructions(void* injecteeAddress, void* hookFunctionPtr, int hookFuncOperandOffset, std::vector<unsigned char> machineCode)
-	{
-		auto jmpAddress = (void**)&machineCode[hookFuncOperandOffset];
-		*jmpAddress = hookFunctionPtr;
-		DWORD oldProtection;
-		VirtualProtect(injecteeAddress, machineCode.size(), PAGE_EXECUTE_READWRITE, &oldProtection);
-		memcpy(injecteeAddress, machineCode.data(), machineCode.size());
-	}
 }
