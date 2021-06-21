@@ -1,6 +1,7 @@
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
 #include <string>
+#include <vector>
 
 
 namespace RecottePluginFoundation
@@ -26,4 +27,6 @@ namespace RecottePluginFoundation
 	{
 		return reinterpret_cast<TDelegate>(LookupFunction(moduleName, functionName));
 	}
+
+	void InjectInstructions(void* injecteeAddress, void* hookFunctionPtr, int hookFuncOperandOffset, std::vector<unsigned char> machineCode);
 }
