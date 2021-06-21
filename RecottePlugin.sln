@@ -5,6 +5,7 @@ VisualStudioVersion = 16.0.31229.75
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "RecottePluginFoundation", "RecottePluginFoundation\RecottePluginFoundation.vcxproj", "{72F0910E-CC73-438B-8640-BEDD1C8FB54A}"
 	ProjectSection(ProjectDependencies) = postProject
+		{2A414713-F784-4172-ACD2-A1589020BE13} = {2A414713-F784-4172-ACD2-A1589020BE13}
 		{05D9FC34-2B7F-4C2C-B5CB-8F25B57C4A84} = {05D9FC34-2B7F-4C2C-B5CB-8F25B57C4A84}
 		{47156942-8EA3-4ADE-8EA6-68C5E02294D7} = {47156942-8EA3-4ADE-8EA6-68C5E02294D7}
 		{BD148D62-9B16-4502-8A77-550D85429B48} = {BD148D62-9B16-4502-8A77-550D85429B48}
@@ -18,6 +19,8 @@ EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "HookHelper", "HookHelper\HookHelper.vcxproj", "{47156942-8EA3-4ADE-8EA6-68C5E02294D7}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "LayerFolding", "LayerFolding\LayerFolding.vcxproj", "{05D9FC34-2B7F-4C2C-B5CB-8F25B57C4A84}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "CustomSkin", "CustomSkin\CustomSkin.vcxproj", "{2A414713-F784-4172-ACD2-A1589020BE13}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -59,6 +62,14 @@ Global
 		{05D9FC34-2B7F-4C2C-B5CB-8F25B57C4A84}.Release|x64.Build.0 = Release|x64
 		{05D9FC34-2B7F-4C2C-B5CB-8F25B57C4A84}.Release|x86.ActiveCfg = Release|Win32
 		{05D9FC34-2B7F-4C2C-B5CB-8F25B57C4A84}.Release|x86.Build.0 = Release|Win32
+		{2A414713-F784-4172-ACD2-A1589020BE13}.Debug|x64.ActiveCfg = Debug|x64
+		{2A414713-F784-4172-ACD2-A1589020BE13}.Debug|x64.Build.0 = Debug|x64
+		{2A414713-F784-4172-ACD2-A1589020BE13}.Debug|x86.ActiveCfg = Debug|Win32
+		{2A414713-F784-4172-ACD2-A1589020BE13}.Debug|x86.Build.0 = Debug|Win32
+		{2A414713-F784-4172-ACD2-A1589020BE13}.Release|x64.ActiveCfg = Release|x64
+		{2A414713-F784-4172-ACD2-A1589020BE13}.Release|x64.Build.0 = Release|x64
+		{2A414713-F784-4172-ACD2-A1589020BE13}.Release|x86.ActiveCfg = Release|Win32
+		{2A414713-F784-4172-ACD2-A1589020BE13}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

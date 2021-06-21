@@ -23,6 +23,14 @@ HWND GetHwnd(GpGraphics* graphics)
 	return hwnd;
 }
 
+Status DrawImage(GpGraphics* graphics, GpImage* image, RectF dstRect, RectF srcRect, Unit srcUnit = Unit::UnitPixel)
+{
+	return DllExports::GdipDrawImageRectRect(graphics, image,
+		dstRect.X, dstRect.Y, dstRect.Width, dstRect.Height,
+		srcRect.X, srcRect.Y, srcRect.Width, srcRect.Height,
+		srcUnit, NULL, NULL, NULL);
+}
+
 __declspec(dllexport) GpStatus _GdipDrawString(GpGraphics* graphics, WCHAR* string, INT length, GpFont* font, RectF* layoutRect, GpStringFormat* stringFormat, GpBrush* brush)
 {
 	if (std::wstring(string) == L"MAKIMAKI")
@@ -43,12 +51,34 @@ __declspec(dllexport) GpStatus _GdipDrawRectangle(GpGraphics * graphics, GpPen *
 	return RecottePluginFoundation::LookupFunction<decltype(&_GdipDrawRectangle)>(MODULE, "GdipDrawRectangle")(graphics, pen, x, y, width, height);
 }
 
-__declspec(dllexport) GpStatus _GdipFillRectangle(GpGraphics * graphics, GpBrush * brush, REAL x, REAL y, REAL width, REAL height)
+GpGraphics* GRAPHICS = nullptr;
+GpSolidFill* BRUSH = nullptr;
+
+__declspec(dllexport) GpStatus _GdipGraphicsClear(GpGraphics* graphics, ARGB color)
 {
-	auto hwnd = GetHwnd(graphics); // ‚Ç‚¤‚àHWND”ñBind‚Á‚Û‚¢
+	//if (GRAPHICS == graphics)
+	//{
+	//	color = 0xFFFF0000;
+	//}
+	return RecottePluginFoundation::LookupFunction<decltype(&_GdipGraphicsClear)>(MODULE, "GdipGraphicsClear")(graphics, color);
+}
+
+
+__declspec(dllexport) GpStatus _GdipFillRectangle(GpGraphics* graphics, GpBrush* brush, REAL x, REAL y, REAL width, REAL height)
+{
+	//if (height == 68.0f)
+	//{
+	//	GRAPHICS = graphics;
+	//	if (BRUSH == nullptr)
+	//	{
+	//		DllExports::GdipCreateSolidFill(0x88222222, &BRUSH);
+	//	}
+	//	brush = BRUSH;
+	//}
+
 	auto base = RecottePluginFoundation::LookupFunction<decltype(&_GdipFillRectangle)>(MODULE, "GdipFillRectangle");
 	// OutputDebugStringW(fmt::format(L"[TestPlugin] GdipFillRectangle: {},{} ({}x{})\n", x, y, width, height).c_str());
-	if ((152.0 > width && width > 147.0) && (27.0 > height && height == 23.0)) return GpStatus::Ok;
+	//if ((152.0 > width && width > 147.0) && (27.0 > height && height == 23.0)) return GpStatus::Ok;
 	return base(graphics, brush, x, y, width, height);
 }
 
@@ -99,9 +129,10 @@ std::vector<FuncInfo> GetOverrideFunctions()
 	}
 	return
 	{
-		FuncInfo{ MODULE, "GdipDrawString", _GdipDrawString },
-		FuncInfo{ MODULE, "GdipDrawRectangle", _GdipDrawRectangle },
+		//FuncInfo{ MODULE, "GdipDrawString", _GdipDrawString },
+		//FuncInfo{ MODULE, "GdipDrawRectangle", _GdipDrawRectangle },
 		FuncInfo{ MODULE, "GdipFillRectangle", _GdipFillRectangle },
-		FuncInfo{ MODULE, "GdipDrawLine", __GdipDrawLine },
+		FuncInfo{ MODULE, "GdipGraphicsClear", _GdipGraphicsClear },
+		//FuncInfo{ MODULE, "GdipDrawLine", __GdipDrawLine },
 	};
 }
