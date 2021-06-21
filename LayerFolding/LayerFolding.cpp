@@ -84,7 +84,9 @@ HWND _CreateWindowExW(DWORD dwExStyle, LPCWSTR lpClassName, LPCWSTR lpWindowName
 void Hook_CalcLayerHeight(void* layerObj)
 {
 	auto windowObj = *(void**)((uint64_t)layerObj + 0xE8);
+	if (windowObj == nullptr) return;
 	auto hwnd = *(HWND*)((uint64_t)windowObj + 0x780);
+	if (hwnd == nullptr) return;
 	auto layerHeight = (float*)((uint64_t)layerObj + 0x160);
 	OutputDebugStringW(std::format(L"[LayerFolding] OnHook HWND:0x{:X} H:{:f}\n", (uint64_t)hwnd, *layerHeight).c_str());
 	

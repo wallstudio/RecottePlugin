@@ -14,12 +14,9 @@ void OnAttach()
 {
 	OutputDebugStringA("ProxyDLL loaded!\n");
 
-	auto pluginsDirectroy = std::filesystem::current_path().append("Plugins");
-	if (!std::filesystem::exists(pluginsDirectroy))
-	{
-		MessageBoxA(NULL, "Not found plugin directory.", "RecottePlugionFoundation", MB_OK);
-	}
-
+	auto exePathBuffer = std::vector<wchar_t>(_MAX_PATH);
+	GetModuleFileNameW(GetModuleHandleW(NULL), exePathBuffer.data(), exePathBuffer.size());
+	auto pluginsDirectroy = std::filesystem::path(exePathBuffer.data()).parent_path().append("Plugins");
 	for (auto pluginFile : std::filesystem::directory_iterator(pluginsDirectroy))
 	{
 		auto s = pluginFile.path().extension().string();
