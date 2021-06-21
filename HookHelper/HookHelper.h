@@ -37,4 +37,35 @@ namespace RecottePluginFoundation
 		VirtualProtect(injecteeAddress, machineCode.size(), PAGE_EXECUTE_READWRITE, &oldProtection);
 		memcpy(injecteeAddress, machineCode.data(), machineCode.size());
 	}
+
+	template<size_t Size>
+	void InjectInstructions(void* hookFunctionPtr, int hookFuncOperandOffset, std::array<unsigned char, Size> markerSequence, std::array<unsigned char, Size> machineCode)
+	{
+		void* injecteeAddress = nullptr;
+		unsigned char* address = nullptr;
+		MEMORY_BASIC_INFORMATION info;
+		HANDLE handle = OpenProcess(PROCESS_ALL_ACCESS, FALSE, GetCurrentProcessId());
+		while (VirtualQueryEx(handle, address, &info, sizeof(info)))
+		{
+			if(info.Type == MEM_IMAGE)
+			{
+				auto buffer = std::vector<unsigned char>(info.RegionSize);
+				ReadProcessMemory(handle, address, buffer.data(), info.RegionSize, nullptr);
+
+				for (size_t i = 0; i < buffer.size(); i++)
+				{
+					if (0 == memcmp(buffer.data() + i, markerSequence.data(), markerSequence.size()))
+					{
+						injecteeAddress = address + i;
+						goto BREAK;
+					}
+				}
+			}
+			address += info.RegionSize;
+		}
+		return;
+		
+		BREAK:
+		InjectInstructions(injecteeAddress, hookFunctionPtr, hookFuncOperandOffset, machineCode);
+	}
 }

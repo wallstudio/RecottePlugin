@@ -21,8 +21,6 @@ struct TimelineLabelItemExSetting
 std::map<HWND, TimelineLabelItemExSetting*> TimelineWidnowLabelsItems = std::map<HWND, TimelineLabelItemExSetting*>();
 
 
-void InjectInstructions();
-
 HWND _CreateWindowExW(DWORD dwExStyle, LPCWSTR lpClassName, LPCWSTR lpWindowName, DWORD dwStyle, int X, int Y, int nWidth, int nHeight, HWND hWndParent, HMENU hMenu, HINSTANCE hInstance, LPVOID lpParam)
 {
 	auto hwnd = RecottePluginFoundation::LookupFunction<decltype(&_CreateWindowExW)>("user32.dll", "CreateWindowExW")
@@ -30,7 +28,6 @@ HWND _CreateWindowExW(DWORD dwExStyle, LPCWSTR lpClassName, LPCWSTR lpWindowName
 
 	if (lpWindowName != nullptr && std::wstring(lpWindowName) == L"タイムライン")
 	{
-		InjectInstructions();
 		TimelineWindow = hwnd;
 		return hwnd;
 	}
@@ -99,29 +96,30 @@ void Hook_CalcLayerHeight(void* layerObj)
 	}
 }
 
-void InjectInstructions()
-{
-	// movssの次のleaの先頭アドレス
-	auto injecteeAddress = (void*)0x00007FF6633A3898; // 48 8D 4C 24 70 E8 DE 37 F2 FF 90
-	auto hookFunctionPtr = &Hook_CalcLayerHeight;
-	unsigned char machineCode[22]
-	{
-	  0x48, 0x8B, 0xCF, // mov rcx, rdi
-	  0x48, 0xB8, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // mov rax, 0FFFFFFFFFFFFFFFFh
-	  0xFF, 0xD0, // call rax
-	  0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, // nop x7
-	};
-	auto jmpAddress = (decltype(&Hook_CalcLayerHeight)*)&machineCode[3 + 2];
-	*jmpAddress = hookFunctionPtr;
-	DWORD oldProtection;
-	VirtualProtect(injecteeAddress, _countof(machineCode), PAGE_EXECUTE_READWRITE, &oldProtection);
-	memcpy(injecteeAddress, machineCode, _countof(machineCode));
-}
-
 extern "C" __declspec(dllexport) void WINAPI OnPluginStart(HINSTANCE handle)
 {
 	OutputDebugStringW(L"[LayerFolding] OnPluginStart\n");
 	RecottePluginFoundation::OverrideImportFunction("user32.dll", "CreateWindowExW", _CreateWindowExW);
+
+	RecottePluginFoundation::InjectInstructions(
+		&Hook_CalcLayerHeight, 3 + 2,
+		std::array<unsigned char, 22>
+		{
+			// 0x00007FF6633A3898
+			0x48, 0x8D, 0x4C, 0x24, 0x70, // lea rcx, qword ptr [rsp+70h]
+			0xE8, 0xDE, 0x37, 0xF2, 0xFF, // call 00007FF6632C7080h
+			0x90, // nop
+			0x48, 0x8D, 0x4C, 0x24, 0x30, // lea rcx, qword ptr [rsp+30h]
+			0xE8, 0xD3, 0x37, 0xF2, 0xFF, // call 00007FF6632C7080h
+			0x90, // nop
+		},
+		std::array<unsigned char, 22>
+		{
+			0x48, 0x8B, 0xCF, // mov rcx, rdi
+			0x48, 0xB8, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // mov rax, 0FFFFFFFFFFFFFFFFh
+			0xFF, 0xD0, // call rax
+			0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, // nop x7
+		});
 }
 
 extern "C" __declspec(dllexport) void WINAPI OnPluginFinish(HINSTANCE haneld)

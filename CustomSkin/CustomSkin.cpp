@@ -79,8 +79,15 @@ extern "C" __declspec(dllexport) void WINAPI OnPluginStart(HINSTANCE handle)
 	OutputDebugStringW(L"[CustomSkin] OnPluginStart\n");
 
 	RecottePluginFoundation::InjectInstructions(
-		(void*)0x00007FF6634CE7D1,
 		&Hook_DrawTimeline_GdipGraphicsClear, 2,
+		std::array<unsigned char, 13>
+		{
+			// 0x00007FF6634CE7D1
+			0xFF, 0x15, 0xA1, 0xD4, 0x2F, 0x00, // call cs:GdipGraphicsClear
+			0x85, 0xC0, // test eax, eax
+			0x74, 0x03, // jz short loc_7FF6634CE7DE
+			0x89, 0x47, 0x08, // mov [rdi+8], eax
+		},
 		std::array<unsigned char, 13>
 		{
 			0x48, 0xB8, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // mov rax, 0FFFFFFFFFFFFFFFFh
@@ -89,8 +96,15 @@ extern "C" __declspec(dllexport) void WINAPI OnPluginStart(HINSTANCE handle)
 		});
 
 	RecottePluginFoundation::InjectInstructions(
-		(void*)0x00007FF6634CEA45,
 		&Hook_DrawTimeline_DrawLayerFoundation, 2,
+		std::array<unsigned char, 20>
+		{
+			// 0x00007FF6634CEA45
+			0xE8, 0xA6, 0xD1, 0xE4, 0xFF, // call DrawRectangle
+			0x90, // nop
+			0x48, 0x8D, 0x05, 0xB6, 0xC5, 0x38, 0x00, // lea rax, off_7FF66385B008
+			0x48, 0x89, 0x85, 0xB0, 0x01, 0x00, 0x00, // mov[rbp + 320h + fillInfo], rax
+		},
 		std::array<unsigned char, 20>
 		{
 			0x48, 0xB8, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // mov rax, 0FFFFFFFFFFFFFFFFh
