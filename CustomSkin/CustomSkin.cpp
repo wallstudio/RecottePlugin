@@ -30,7 +30,22 @@ std::map<HWND, TimelineLabelItemExSetting*> TimelineWidnowLabelsItems = std::map
 
 Gdiplus::GpStatus Hook_DrawTimeline_GdipGraphicsClear(Gdiplus::GpGraphics* graphics, Gdiplus::ARGB color)
 {
-	return Gdiplus::DllExports::GdipGraphicsClear(graphics, 0xffff1010);
+	auto result = Gdiplus::DllExports::GdipGraphicsClear(graphics, color);
+	
+	static Gdiplus::GpBitmap* bitmap = nullptr;
+	if (bitmap == nullptr)
+	{
+		Gdiplus::DllExports::GdipCreateBitmapFromFile(L"C:\\Users\\huser\\Downloads\\stand_mk\\マキマキ立ち絵4_0001.png", &bitmap);
+	}
+	unsigned int srcW, srcH;
+	Gdiplus::DllExports::GdipGetImageWidth(bitmap, &srcW);
+	Gdiplus::DllExports::GdipGetImageHeight(bitmap, &srcH);
+	Gdiplus::GpRectF dst;
+	Gdiplus::DllExports::GdipGetClipBounds(graphics, &dst);
+	auto w = dst.Height * (srcW / (float)srcH);
+	Gdiplus::DllExports::GdipDrawImageRect(graphics, bitmap, dst.Width - w, 0, w, dst.Height);
+
+	return result;
 }
 
 void Hook_DrawTimeline_DrawLayerFoundation(void** drawInfo, float* xywh)
