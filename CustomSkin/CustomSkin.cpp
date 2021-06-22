@@ -59,8 +59,9 @@ Gdiplus::GpStatus Hook_DrawTimeline_GdipGraphicsClear(Gdiplus::GpGraphics* graph
 	Gdiplus::DllExports::GdipGetImageHeight(bitmap, &srcH);
 	Gdiplus::GpRectF dst;
 	Gdiplus::DllExports::GdipGetClipBounds(graphics, &dst);
+	dst.Height -= 25; // 目盛りの分
 	auto w = dst.Height * (srcW / (float)srcH);
-	Gdiplus::DllExports::GdipDrawImageRect(graphics, bitmap, dst.Width - w, 0, w, dst.Height);
+	Gdiplus::DllExports::GdipDrawImageRect(graphics, bitmap, dst.Width - w, 25, w, dst.Height);
 
 	return result;
 }
