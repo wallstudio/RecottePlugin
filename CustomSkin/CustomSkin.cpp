@@ -1,6 +1,7 @@
 ﻿#define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
 #include <vector>
+#include <filesystem>
 #include <string>
 #include <set>
 #include <map>
@@ -35,7 +36,18 @@ Gdiplus::GpStatus Hook_DrawTimeline_GdipGraphicsClear(Gdiplus::GpGraphics* graph
 	static Gdiplus::GpBitmap* bitmap = nullptr;
 	if (bitmap == nullptr)
 	{
-		Gdiplus::DllExports::GdipCreateBitmapFromFile(L"C:\\Users\\huser\\Downloads\\stand_mk\\マキマキ立ち絵4_0001.png", &bitmap);
+		auto exePathBuffer = std::vector<wchar_t>(_MAX_PATH);
+		GetModuleFileNameW(GetModuleHandleW(NULL), exePathBuffer.data(), exePathBuffer.size());
+		auto exePath = std::filesystem::path(exePathBuffer.data()).parent_path().string();
+		auto rsp = std::filesystem::path(exePath).append("models").append("2D-Maki_shihuku.rsp").string();
+		auto packer = std::filesystem::path(exePath).append("Plugins").append("Png2RspConverter.exe").string();
+		auto tmp = std::filesystem::temp_directory_path().append("RecotteStudioPlugin").append(std::filesystem::path(rsp).filename().string()).string();
+		auto command = std::format("\"    \"{}\" --unpack \"{}\" \"{}\"    \"", packer, rsp, tmp);
+		OutputDebugStringA(std::format("{}\n", command).c_str());
+		auto result = std::system(command.c_str());
+
+		auto image = std::filesystem::path(tmp).append("action10_o.png");
+		Gdiplus::DllExports::GdipCreateBitmapFromFile(image.c_str(), &bitmap);
 	}
 	unsigned int srcW, srcH;
 	Gdiplus::DllExports::GdipGetImageWidth(bitmap, &srcW);

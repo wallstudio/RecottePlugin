@@ -161,6 +161,11 @@
   <ItemGroup>
     <ClCompile Include="CustomSkin.cpp" />
   </ItemGroup>
+  <ItemGroup>
+    <CopyFileToFolders Include="Png2RspConverter.exe">
+      <FileType>Document</FileType>
+    </CopyFileToFolders>
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
