@@ -386,3 +386,6 @@ FodyWeavers.xsd
 # JetBrains Rider
 .idea/
 *.sln.iml
+
+recotte_plugins_foundation/
+recotte_plugins_foundation.zip
