@@ -45,3 +45,6 @@ RecotteStudioのプラグインです。
 
 作りとしてはWin32のWindowシステムベースだけど、GDI+で独自の描画をしている個所が多いのでUIいじる系は結構大変？
 
+- https://qiita.com/up-hash/items/28375739208402721323
+- https://qiita.com/up-hash/items/8ca41c4038c26a96674a
+- https://gist.github.com/wallstudio/b78ce70e015058f7c33e391b0cfd7815
