@@ -7,4 +7,4 @@ copy LICENSE recotte_plugins_foundation\
 copy README.md recotte_plugins_foundation\
 PowerShell.exe -Command Compress-Archive -Path recotte_plugins_foundation\* -DestinationPath recotte_plugins_foundation.zip
 
-REM rmdir recotte_plugins_foundation
+rmdir /s /q recotte_plugins_foundation
