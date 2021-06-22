@@ -2,6 +2,12 @@
 
 RecotteStudioのプラグインです。
 
+![](img/ss1.gif)
+
+## 対応バージョン
+
+==1.3.7.1
+
 ## 使い方
 
 1. RecotteStudioをインストール
