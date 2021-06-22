@@ -39,15 +39,14 @@ namespace RecottePluginFoundation
 	}
 
 	template<size_t Size>
-	void InjectInstructions(void* hookFunctionPtr, int hookFuncOperandOffset, std::array<unsigned char, Size> markerSequence, std::array<unsigned char, Size> machineCode)
+	unsigned char* SearchAddress(std::array<unsigned char, Size> markerSequence)
 	{
-		void* injecteeAddress = nullptr;
 		unsigned char* address = nullptr;
 		MEMORY_BASIC_INFORMATION info;
 		HANDLE handle = OpenProcess(PROCESS_ALL_ACCESS, FALSE, GetCurrentProcessId());
 		while (VirtualQueryEx(handle, address, &info, sizeof(info)))
 		{
-			if(info.Type == MEM_IMAGE)
+			if (info.Type == MEM_IMAGE)
 			{
 				auto buffer = std::vector<unsigned char>(info.RegionSize);
 				ReadProcessMemory(handle, address, buffer.data(), info.RegionSize, nullptr);
@@ -56,16 +55,19 @@ namespace RecottePluginFoundation
 				{
 					if (0 == memcmp(buffer.data() + i, markerSequence.data(), markerSequence.size()))
 					{
-						injecteeAddress = address + i;
-						goto BREAK;
+						return address + i;
 					}
 				}
 			}
 			address += info.RegionSize;
 		}
-		return;
-		
-		BREAK:
+		return nullptr;
+	}
+
+	template<size_t Size>
+	void InjectInstructions(void* hookFunctionPtr, int hookFuncOperandOffset, std::array<unsigned char, Size> markerSequence, std::array<unsigned char, Size> machineCode)
+	{
+		void* injecteeAddress = SearchAddress(markerSequence);
 		InjectInstructions(injecteeAddress, hookFunctionPtr, hookFuncOperandOffset, machineCode);
 	}
 }

@@ -14,20 +14,7 @@
 #include <gdiplustypes.h>
 #pragma comment(lib, "gdiplus.lib")
 
-const char MODULE[] = "gdiplus.dll";
-
-
-HWND TimelineWindow = nullptr;
-HWND TimelineWidnowLabels = nullptr;
-HWND TimelineMainWidnow = nullptr;
-struct TimelineLabelItemExSetting
-{
-	HWND Hwnd;
-	bool Folding;
-	WNDPROC BoxOriginalProc;
-};
-std::map<HWND, TimelineLabelItemExSetting*> TimelineWidnowLabelsItems = std::map<HWND, TimelineLabelItemExSetting*>();
-
+void* Global_0;
 
 Gdiplus::GpStatus Hook_DrawTimeline_GdipGraphicsClear(Gdiplus::GpGraphics* graphics, Gdiplus::ARGB color)
 {
@@ -66,12 +53,12 @@ Gdiplus::GpStatus Hook_DrawTimeline_GdipGraphicsClear(Gdiplus::GpGraphics* graph
 	return result;
 }
 
-void Hook_DrawTimeline_DrawLayerFoundation(void** drawInfo, float* xywh)
+uint64_t Hook_DrawTimeline_DrawLayerFoundation(void** drawInfo, float* xywh)
 {
 	using namespace RecottePluginFoundation;
 
 	auto graphics = (Gdiplus::GpGraphics**)drawInfo[29];
-	auto result = (Gdiplus::GpStatus*)&drawInfo[30];
+	auto result = Offset<Gdiplus::GpStatus>(drawInfo[29], 8);
 	auto fill = drawInfo[6];
 	if (fill)
 	{
@@ -90,12 +77,14 @@ void Hook_DrawTimeline_DrawLayerFoundation(void** drawInfo, float* xywh)
 		auto pen = **Offset<Gdiplus::GpPen**>(noFill, 16);
 		*result = Gdiplus::DllExports::GdipDrawRectangle(*graphics, pen, xywh[0], xywh[1], xywh[2], xywh[3]);
 	}
+	return *(uint64_t*)Global_0;
 }
 
 extern "C" __declspec(dllexport) void WINAPI OnPluginStart(HINSTANCE handle)
 {
 	OutputDebugStringW(L"[CustomSkin] OnPluginStart\n");
 
+	// TODO: アドレスを含まないMarkerに
 	RecottePluginFoundation::InjectInstructions(
 		&Hook_DrawTimeline_GdipGraphicsClear, 2,
 		std::array<unsigned char, 13>
@@ -113,22 +102,33 @@ extern "C" __declspec(dllexport) void WINAPI OnPluginStart(HINSTANCE handle)
 			0x90, // nops
 		});
 
-	RecottePluginFoundation::InjectInstructions(
-		&Hook_DrawTimeline_DrawLayerFoundation, 2,
-		std::array<unsigned char, 20>
+	{
+		// 土地が足りないので、Global変数へのアクセスを肩代わりして稼ぐ
+		auto marker = std::array <unsigned char, 19>
 		{
-			// 0x00007FF6634CEA45
-			0xE8, 0xA6, 0xD1, 0xE4, 0xFF, // call DrawRectangle
 			0x90, // nop
-			0x48, 0x8D, 0x05, 0xB6, 0xC5, 0x38, 0x00, // lea rax, off_7FF66385B008
-			0x48, 0x89, 0x85, 0xB0, 0x01, 0x00, 0x00, // mov[rbp + 320h + fillInfo], rax
-		},
-		std::array<unsigned char, 20>
-		{
-			0x48, 0xB8, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // mov rax, 0FFFFFFFFFFFFFFFFh
-			0xFF, 0xD0, // call rax
-			0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, // nops
-		});
+			0x48, 0x8D, 0x85, 0xB0, 0x01, 0x00, 0x00, // lea rax, [rbp + 320h + var_170]
+			0x48, 0x89, 0x46, 0x30, // mov[rsi + 30h], rax
+			0x48, 0x8D, 0x55, 0x18, // lea rdx, [rbp + 320h + var_308]
+			0x48, 0x8B, 0xCE, // mov rcx, rsi
+		};
+		auto markerAddress = RecottePluginFoundation::SearchAddress(marker);
+		auto injecteeAddress = markerAddress + marker.size();
+		// E8 A6 D1 E4 FF          call DrawRectangle
+		// 90                      nop
+		// 48 8D 05 B6 C5 38 00    lea rax, off_7FF6A569B008
+		auto offset = (uint32_t*)(injecteeAddress + 9); // 0x0038C5B6
+		Global_0 = injecteeAddress + 13 + *offset;
+		RecottePluginFoundation::InjectInstructions(
+			injecteeAddress,
+			&Hook_DrawTimeline_DrawLayerFoundation, 2,
+			std::array<unsigned char, 13>
+			{
+				0x48, 0xB8, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // mov rax, 0FFFFFFFFFFFFFFFFh
+				0xFF, 0xD0, // call rax
+				0x90, // nop
+			});
+	}
 }
 
 extern "C" __declspec(dllexport) void WINAPI OnPluginFinish(HINSTANCE haneld)
