@@ -81,20 +81,48 @@ HWND _CreateWindowExW(DWORD dwExStyle, LPCWSTR lpClassName, LPCWSTR lpWindowName
 	return hwnd;
 }
 
-void Hook_CalcLayerHeight(void* layerObj)
+
+struct WindowObj
 {
-	auto windowObj = *(void**)((uint64_t)layerObj + 0xE8);
-	if (windowObj == nullptr) return;
-	auto hwnd = *(HWND*)((uint64_t)windowObj + 0x780);
-	if (hwnd == nullptr) return;
-	auto layerHeight = (float*)((uint64_t)layerObj + 0x160);
-	OutputDebugStringW(std::format(L"[LayerFolding] OnHook HWND:0x{:X} H:{:f}\n", (uint64_t)hwnd, *layerHeight).c_str());
-	
-	auto additionalSetting = TimelineWidnowLabelsItems[hwnd];
+	std::byte __Gap0[0x780];
+	HWND Hwnd;
+};
+struct UnknownObj
+{
+	std::byte __Gap0[0x60];
+	float(*GetConstantMinHeight)();
+};
+struct LayerObj
+{
+	UnknownObj* UnknownObj;
+	std::byte __Gap0[0xE8 - sizeof(UnknownObj)];
+	WindowObj* WindowObj;
+	std::byte __Gap1[0x160 - sizeof(UnknownObj) - sizeof(__Gap0) - sizeof(WindowObj)];
+	float LayerHeight;
+};
+
+void Hook_CalcLayerHeight(LayerObj* layerObj)
+{
+	auto additionalSetting = TimelineWidnowLabelsItems[layerObj->WindowObj->Hwnd];
 	if (additionalSetting->Folding)
 	{
-		*layerHeight = 68.0f; // デフォルトの最小値
-		UpdateWindow(hwnd);
+		layerObj->LayerHeight = 68.0f; // デフォルトの最小値
+		UpdateWindow(layerObj->WindowObj->Hwnd);
+	}
+}
+
+void Hook_CalcLayerHeight2(float xmm0, LayerObj* layerObj)
+{
+	if (layerObj->LayerHeight < xmm0)
+	{
+		layerObj->LayerHeight = layerObj->UnknownObj->GetConstantMinHeight();
+	}
+
+	auto additionalSetting = TimelineWidnowLabelsItems[layerObj->WindowObj->Hwnd];
+	if (additionalSetting->Folding)
+	{
+		layerObj->LayerHeight = 68.0f; // デフォルトの最小値
+		UpdateWindow(layerObj->WindowObj->Hwnd);
 	}
 }
 
@@ -122,6 +150,38 @@ extern "C" __declspec(dllexport) void WINAPI OnPluginStart(HINSTANCE handle)
 			0xFF, 0xD0, // call rax
 			0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, // nop x7
 		});
+	
+	{
+		auto marker = std::array<unsigned char, 46>
+		{
+			// 0x00007FF6A522AFDC
+			0x0F, 0x2F, 0xF8, // comiss xmm7, xmm0
+			0x76, 0x13, // jbe short loc_7FF6A522AFF4
+			0xF3, 0x0F, 0x11, 0xBB, 0x60, 0x01, 0x00, 0x00, //movss dword ptr [rbx+160h], xmm7
+			0x0F, 0x28, 0x7C, 0x24, 0x20, // movaps xmm7, [rsp+38h+var_18]
+			0x48, 0x83, 0xC4, 0x30, // add rsp, 30h
+			0x5B, // pop rbx
+			0xC3, // retn
+			// loc_7FF6A522AFF4:
+			0x48, 0x8B, 0x03, // mov rax, [rbx]
+			0x48, 0x8B, 0xCB, // mov rcx, rbx
+			0xFF, 0x50, 0x60, // call qword ptr [rax+60h]
+			0x0F, 0x28, 0x7C, 0x24, 0x20, // movaps xmm7, [rsp+38h+var_18]
+			0xF3, 0x0F, 0x11, 0x83, 0x60, 0x01, 0x00, 0x00, // movss dword ptr [rbx+160h], xmm0
+		};
+		auto injecteeAddress = RecottePluginFoundation::SearchAddress(marker);
+		RecottePluginFoundation::InjectInstructions(
+			injecteeAddress,
+			&Hook_CalcLayerHeight2, 5,
+			std::array<unsigned char, 46>
+			{
+				0x48, 0x8B, 0b11'010'011, // mov rdx, rbx
+				0x48, 0xB8, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // mov rax, 0FFFFFFFFFFFFFFFFh
+				0xFF, 0xD0, // call rax
+				0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, // nop
+				0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, // nop
+			});
+	}
 }
 
 extern "C" __declspec(dllexport) void WINAPI OnPluginFinish(HINSTANCE haneld)
