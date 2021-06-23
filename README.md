@@ -23,6 +23,8 @@ RecotteStudioのプラグインです。
 
 レイヤーのラベル（左側のペイン）の左上にある■をクリックするとそのレイヤーの折り畳み状態をON/OFFできます。反映は、次の再描画のタイミング（タイムラインをクリックしたときなど）からとなっています。
 
+話者レイヤーと注釈レイヤーが対応しています。注釈レイヤーは画像を重ねがちなので活用しやすいかも。
+
 レイヤー内のオブジェクトのクリッピングはされていないので、下のレイヤーの背面に透けて見えていますがこれは仕様です。
 
 #### CustomSkin
@@ -60,3 +62,4 @@ Pluginフォルダ内に`skin.png`の名前で画像を入れておくことで�
 - https://qiita.com/up-hash/items/28375739208402721323
 - https://qiita.com/up-hash/items/8ca41c4038c26a96674a
 - https://gist.github.com/wallstudio/b78ce70e015058f7c33e391b0cfd7815
+- https://silight.hatenablog.jp/entry/2016/08/23/212820
