@@ -34,10 +34,14 @@ Gdiplus::GpStatus Hook_DrawTimeline_GdipGraphicsClear(Gdiplus::GpGraphics* graph
 			auto rsp = std::filesystem::path(exeDir).append("models").append("2D-Maki_shihuku.rsp").string();
 			auto packer = std::filesystem::path(pluginDir).append("Png2RspConverter.exe").string();
 			auto tmp = std::filesystem::temp_directory_path().append("RecotteStudioPlugin").append(std::filesystem::path(rsp).filename().string()).string();
-			auto command = std::format("\"    \"{}\" --unpack \"{}\" \"{}\"    \"", packer, rsp, tmp);
-			OutputDebugStringA(std::format("{}\n", command).c_str());
-			auto result = std::system(command.c_str());
 			file = std::filesystem::path(tmp).append("action10_o.png").wstring();
+			if (!std::filesystem::exists(file))
+			{
+				auto command = std::format("\"    \"{}\" --unpack \"{}\" \"{}\"    \"", packer, rsp, tmp);
+				OutputDebugStringA(std::format("{}\n", command).c_str());
+				auto result = std::system(command.c_str());
+				if(result != 0) OutputDebugStringA(std::format("Command failed {}\n", result).c_str());
+			}
 		}
 		Gdiplus::DllExports::GdipCreateBitmapFromFile(file.c_str(), &bitmap);
 	}
