@@ -126,7 +126,15 @@ void Hook_CalcLayerHeight2(float xmm0, LayerObj* layerObj)
 	{
 		layerObj->LayerHeight = layerObj->UnknownObj->GetConstantMinHeight();
 	}
-
+	
+	if (layerObj == nullptr
+		|| layerObj->WindowObj == nullptr 
+		|| layerObj->WindowObj->Hwnd == nullptr
+		|| !TimelineWidnowLabelsItems.contains(layerObj->WindowObj->Hwnd))
+	{
+		// RSPの読み込みタイミングによって、CreateWindowより先に来ることがあるっぽい
+		return;
+	}
 	auto additionalSetting = TimelineWidnowLabelsItems[layerObj->WindowObj->Hwnd];
 	if (additionalSetting->Folding)
 	{
