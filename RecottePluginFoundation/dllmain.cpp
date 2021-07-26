@@ -10,13 +10,45 @@ FARPROC p[51];
 
 std::vector<HINSTANCE> g_Plugins;
 
+std::filesystem::path ResolvePluginPath()
+{
+	std::vector<wchar_t> buffer;
+	size_t buffSize;
+
+	// 環境変数モード（for Dev）
+	_wgetenv_s(&buffSize, nullptr, 0, L"RECOTTE_PLUGIN_DIR");
+	if (buffSize != 0)
+	{
+		buffer = std::vector<wchar_t>(buffSize);
+		_wgetenv_s(&buffSize, buffer.data(), buffer.size(), L"RECOTTE_PLUGIN_DIR");
+		return std::filesystem::path(buffer.data());
+	}
+
+	// Userディレクトリモード（追加インストールし易いように）
+	_wgetenv_s(&buffSize, nullptr, 0, L"HOMEPATH");
+	buffer = std::vector<wchar_t>(buffSize);
+	_wgetenv_s(&buffSize, buffer.data(), buffer.size(), L"HOMEPATH");
+	if (buffSize != 0)
+	{
+		auto directory = std::filesystem::path(buffer.data()).append("RecottePlugin");
+		if (std::filesystem::exists(directory))
+		{
+			return directory;
+		}
+	}
+	
+	// 従来のProgram Filesに直接置くモード
+	buffer = std::vector<wchar_t>(_MAX_PATH);
+	GetModuleFileNameW(GetModuleHandleW(NULL), buffer.data(), buffer.size());
+	auto pluginsDirectroy = std::filesystem::path(buffer.data()).parent_path().append("Plugins");
+	return pluginsDirectroy;
+}
+
 void OnAttach()
 {
 	OutputDebugStringA("ProxyDLL loaded!\n");
 
-	auto exePathBuffer = std::vector<wchar_t>(_MAX_PATH);
-	GetModuleFileNameW(GetModuleHandleW(NULL), exePathBuffer.data(), exePathBuffer.size());
-	auto pluginsDirectroy = std::filesystem::path(exePathBuffer.data()).parent_path().append("Plugins");
+	auto pluginsDirectroy = ResolvePluginPath();
 	for (auto pluginFile : std::filesystem::directory_iterator(pluginsDirectroy))
 	{
 		auto s = pluginFile.path().extension().string();
