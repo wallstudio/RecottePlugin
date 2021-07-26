@@ -2,6 +2,7 @@
 #include <Windows.h>
 #include <string>
 #include <vector>
+#include <functional>
 
 
 namespace RecottePluginFoundation
@@ -31,6 +32,11 @@ namespace RecottePluginFoundation
 	template<size_t Size>
 	void InjectInstructions(void* injecteeAddress, void* hookFunctionPtr, int hookFuncOperandOffset, std::array<unsigned char, Size> machineCode)
 	{
+		if (injecteeAddress == nullptr)
+		{
+			return;
+		}
+
 		auto jmpAddress = (void**)&machineCode[hookFuncOperandOffset];
 		*jmpAddress = hookFunctionPtr;
 		DWORD oldProtection;
@@ -69,5 +75,38 @@ namespace RecottePluginFoundation
 	{
 		void* injecteeAddress = SearchAddress(markerSequence);
 		InjectInstructions(injecteeAddress, hookFunctionPtr, hookFuncOperandOffset, machineCode);
+	}
+
+
+	inline std::byte* SearchAddress(std::function<bool(std::byte*)> predicate)
+	{
+		std::byte* address = nullptr;
+		MEMORY_BASIC_INFORMATION info;
+		HANDLE handle = OpenProcess(PROCESS_ALL_ACCESS, FALSE, GetCurrentProcessId());
+		while (VirtualQueryEx(handle, address, &info, sizeof(info)))
+		{
+			if (info.Type == MEM_IMAGE)
+			{
+				//auto buffer = std::vector<std::byte>(info.RegionSize);
+				//ReadProcessMemory(handle, address, buffer.data(), info.RegionSize, nullptr);
+
+				for (size_t i = 0; i < info.RegionSize; i++)
+				{
+					if (predicate(address + i))
+					{
+						return address + i;
+					}
+				}
+			}
+			address += info.RegionSize;
+		}
+		return nullptr;
+	}
+
+	inline void MemoryCopyAvoidingProtection(void* dst, void* src, size_t size)
+	{
+		DWORD oldProtection;
+		VirtualProtect(dst, size, PAGE_EXECUTE_READWRITE, &oldProtection);
+		memcpy(dst, src, size);
 	}
 }

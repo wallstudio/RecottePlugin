@@ -88,27 +88,44 @@ extern "C" __declspec(dllexport) void WINAPI OnPluginStart(HINSTANCE handle)
 {
 	OutputDebugStringW(L"[CustomSkin] OnPluginStart\n");
 
-	// TODO: アドレスを含まないMarkerに
-	RecottePluginFoundation::InjectInstructions(
-		&Hook_DrawTimeline_GdipGraphicsClear, 2,
-		std::array<unsigned char, 13>
+	{
+		auto target = RecottePluginFoundation::SearchAddress([&](std::byte* address)
 		{
-			// 0x00007FF6634CE7D1
-			0xFF, 0x15, 0xA1, 0xD4, 0x2F, 0x00, // call cs:GdipGraphicsClear
-			0x85, 0xC0, // test eax, eax
-			0x74, 0x03, // jz short loc_7FF6634CE7DE
-			0x89, 0x47, 0x08, // mov [rdi+8], eax
-		},
-		std::array<unsigned char, 13>
-		{
-			0x48, 0xB8, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // mov rax, 0FFFFFFFFFFFFFFFFh
-			0xFF, 0xD0, // call rax
-			0x90, // nops
+			static auto part0 = std::vector<unsigned char>
+			{
+				0xFF, 0x15, /* 0xA1, 0xD4, 0x2F, 0x00, */ // call cs:GdipGraphicsClear
+			};
+			if (0 != memcmp(address, part0.data(), part0.size())) return false;
+			address += part0.size();
+			address += sizeof(uint32_t);
+
+			static auto part1 = std::vector<unsigned char>
+			{
+				0x85, 0xC0, // test eax, eax
+				0x74, 0x03, // jz short loc_7FF6634CE7DE
+				0x89, 0x47, 0x08, // mov [rdi+8], eax
+				0x44, 0x8B, 0x73, 0x10, // mov r14d,[rbx + 10h]
+			};
+			if (0 != memcmp(address, part1.data(), part1.size())) return false;
+			address += part1.size();
+
+			return true;
 		});
+		if (target != nullptr)
+		{
+			auto part3 = std::vector<unsigned char>
+			{
+				0x48, 0xB8, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // mov rax, 0FFFFFFFFFFFFFFFFh
+				0xFF, 0xD0, // call rax
+				0x90, // nops
+			};
+			*(void**)(part3.data() + 2) = &Hook_DrawTimeline_GdipGraphicsClear;
+			RecottePluginFoundation::MemoryCopyAvoidingProtection(target, part3.data(), part3.size());
+		}
+	}
 
 	{
-		// 土地が足りないので、Global変数へのアクセスを肩代わりして稼ぐ
-		auto marker = std::array <unsigned char, 19>
+		static auto part0 = std::vector<unsigned char>
 		{
 			0x90, // nop
 			0x48, 0x8D, 0x85, 0xB0, 0x01, 0x00, 0x00, // lea rax, [rbp + 320h + var_170]
@@ -116,22 +133,47 @@ extern "C" __declspec(dllexport) void WINAPI OnPluginStart(HINSTANCE handle)
 			0x48, 0x8D, 0x55, 0x18, // lea rdx, [rbp + 320h + var_308]
 			0x48, 0x8B, 0xCE, // mov rcx, rsi
 		};
-		auto markerAddress = RecottePluginFoundation::SearchAddress(marker);
-		auto injecteeAddress = markerAddress + marker.size();
-		// E8 A6 D1 E4 FF          call DrawRectangle
-		// 90                      nop
-		// 48 8D 05 B6 C5 38 00    lea rax, off_7FF6A569B008
-		auto offset = (uint32_t*)(injecteeAddress + 9); // 0x0038C5B6
-		Global_0 = injecteeAddress + 13 + *offset;
-		RecottePluginFoundation::InjectInstructions(
-			injecteeAddress,
-			&Hook_DrawTimeline_DrawLayerFoundation, 2,
-			std::array<unsigned char, 13>
+		auto target = RecottePluginFoundation::SearchAddress([&](std::byte* address)
+		{
+			if (0 != memcmp(address, part0.data(), part0.size())) return false;
+			address += part0.size();
+
+			static auto part1 = std::vector<unsigned char>
+			{
+				0xE8, /* 0xA6, 0xD1, 0xE4, 0xFF, */ // call DrawRectangle
+			};
+			if (0 != memcmp(address, part1.data(), part1.size())) return false;
+			address += part1.size();
+			address += sizeof(uint32_t);
+
+			static auto part2 = std::vector<unsigned char>
+			{
+				0x90, // nop
+				0x48, 0x8D, 0x05, /* 0xB6, 0xC5, 0x38, 0x00, */ // lea rax, off_7FF6A569B008
+			};
+			if (0 != memcmp(address, part2.data(), part2.size())) return false;
+			address += part2.size();
+
+			auto relativeAddressOffset = *((uint32_t*)address); // 0x0038C5B6
+			address += sizeof(uint32_t);
+
+			// 土地が足りないので、Global変数へのアクセスを肩代わりして稼ぐ
+			Global_0 = address + relativeAddressOffset; // 7FF6A569B008; Capture
+			return true;
+		});
+		if (target != nullptr)
+		{
+			// part0 はそのままに、part1, part2 を上書きする
+			target += part0.size();
+			auto part3 = std::vector<unsigned char>
 			{
 				0x48, 0xB8, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // mov rax, 0FFFFFFFFFFFFFFFFh
 				0xFF, 0xD0, // call rax
 				0x90, // nop
-			});
+			};
+			*(void**)(part3.data() + 2) = &Hook_DrawTimeline_DrawLayerFoundation;
+			RecottePluginFoundation::MemoryCopyAvoidingProtection(target, part3.data(), part3.size());
+		}
 	}
 }
 
