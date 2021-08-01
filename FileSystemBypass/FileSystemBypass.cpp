@@ -32,13 +32,45 @@ HANDLE _FindFirstFileW(LPCWSTR lpFileName, LPWIN32_FIND_DATAW lpFindFileData)
     auto result = base(lpFileName, lpFindFileData);
 
     {
-         auto find = RecottePluginFoundation::LookupFunction<decltype(&_FindFirstFileW)>("kernel32.dll", "FindFirstFileW");
-         auto next = RecottePluginFoundation::LookupFunction<decltype(&_FindNextFileW)>("kernel32.dll", "FindNextFileW");
-         WIN32_FIND_DATAW data;
+        auto find = RecottePluginFoundation::LookupFunction<decltype(&_FindFirstFileW)>("kernel32.dll", "FindFirstFileW");
+        auto next = RecottePluginFoundation::LookupFunction<decltype(&_FindNextFileW)>("kernel32.dll", "FindNextFileW");
+        WIN32_FIND_DATAW data;
         g_FileFindHandles[result] = std::shared_ptr<FilesProvider>(new FilesProvider(lpFileName));
         for (auto handle = find(lpFileName, &data); handle != INVALID_HANDLE_VALUE && next(handle, &data);)
         {
              g_FileFindHandles[result]->container.push_back(data);
+        }
+
+        // Plugin Effectを差し込む
+        if (0 == wcscmp(lpFileName, L"C:\\Program Files\\RecotteStudio\\effects\\effects\\*"))
+        {
+            for (auto handle = find(L"..\\..\\..\\..\\Users\\huser\\Documents\\Project\\RecotteShader\\dst\\effects\\*", &data); handle != INVALID_HANDLE_VALUE && next(handle, &data);)
+            {
+                if (0 == wcscmp(data.cFileName, L"..")) continue;
+                auto relative = std::wstring(L"..\\..\\..\\..\\Users\\huser\\Documents\\Project\\RecotteShader\\dst\\effects\\") + data.cFileName;
+                wcscpy_s(data.cFileName, MAX_PATH, relative.c_str());
+                g_FileFindHandles[result]->container.push_back(data);
+            }
+        }
+        if (0 == wcscmp(lpFileName, L"C:\\Program Files\\RecotteStudio\\effects\\text\\*"))
+        {
+            for (auto handle = find(L"..\\..\\..\\..\\Users\\huser\\Documents\\Project\\RecotteShader\\dst\\text\\*", &data); handle != INVALID_HANDLE_VALUE && next(handle, &data);)
+            {
+                if (0 == wcscmp(data.cFileName, L"..")) continue;
+                auto relative = std::wstring(L"..\\..\\..\\..\\Users\\huser\\Documents\\Project\\RecotteShader\\dst\\text\\") + data.cFileName;
+                wcscpy_s(data.cFileName, MAX_PATH, relative.c_str());
+                g_FileFindHandles[result]->container.push_back(data);
+            }
+        }
+        if (0 == wcscmp(lpFileName, L"C:\\Program Files\\RecotteStudio\\effects\\transitions\\*"))
+        {
+            for (auto handle = find(L"..\\..\\..\\..\\Users\\huser\\Documents\\Project\\RecotteShader\\dst\\transitions\\*", &data); handle != INVALID_HANDLE_VALUE && next(handle, &data);)
+            {
+                if (0 == wcscmp(data.cFileName, L"..")) continue;
+                auto relative = std::wstring(L"..\\..\\..\\..\\Users\\huser\\Documents\\Project\\RecotteShader\\dst\\transitions\\") + data.cFileName;
+                wcscpy_s(data.cFileName, MAX_PATH, relative.c_str());
+                g_FileFindHandles[result]->container.push_back(data);
+            }
         }
     }
 
@@ -77,6 +109,19 @@ BOOL _FindClose(HANDLE hFindFile)
     return base(hFindFile);
 }
 
+HANDLE _CreateFileW(LPCWSTR lpFileName, DWORD dwDesiredAccess, DWORD dwShareMode, LPSECURITY_ATTRIBUTES lpSecurityAttributes, DWORD dwCreationDisposition, DWORD dwFlagsAndAttributes, HANDLE hTemplateFile)
+{
+    if (0 == wcscmp(lpFileName, L".\\effects/lib.lua"))
+    {
+        lpFileName = L"C:\\Users\\huser\\Documents\\Project\\RecotteShader\\dst\\lib.lua";
+    }
+
+    OutputDebugStringW(std::format(L"[FileSystemBypass] _CreateFileW {}\n", lpFileName).c_str());
+    auto base = RecottePluginFoundation::LookupFunction<decltype(&_CreateFileW)>("kernel32.dll", "CreateFileW");
+    auto result = base(lpFileName, dwDesiredAccess, dwShareMode, lpSecurityAttributes, dwCreationDisposition, dwFlagsAndAttributes, hTemplateFile);
+    return result;
+}
+
 extern "C" __declspec(dllexport) void WINAPI OnPluginStart(HINSTANCE handle)
 {
 	OutputDebugStringW(L"[FileSystemBypass] " __FUNCTION__ "\n");
@@ -84,6 +129,7 @@ extern "C" __declspec(dllexport) void WINAPI OnPluginStart(HINSTANCE handle)
     RecottePluginFoundation::OverrideImportFunction("kernel32.dll", "FindFirstFileExW", _FindFirstFileExW);
     RecottePluginFoundation::OverrideImportFunction("kernel32.dll", "FindNextFileW", _FindNextFileW);
     RecottePluginFoundation::OverrideImportFunction("kernel32.dll", "FindClose", _FindClose);
+    RecottePluginFoundation::OverrideImportFunction("kernel32.dll", "CreateFileW", _CreateFileW);
 }
 
 extern "C" __declspec(dllexport) void WINAPI OnPluginFinish(HINSTANCE haneld)
