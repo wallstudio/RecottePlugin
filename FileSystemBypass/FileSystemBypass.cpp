@@ -24,6 +24,24 @@ struct FilesProvider
 
 std::map<HANDLE, std::shared_ptr<FilesProvider>> g_FileFindHandles = std::map<HANDLE, std::shared_ptr<FilesProvider>>();
 
+std::filesystem::path ResolveRecotteShaderDirctory()
+{
+    std::vector<wchar_t> buffer;
+    size_t buffSize;
+
+    // 環境変数モード（for Dev）
+    _wgetenv_s(&buffSize, nullptr, 0, L"RECOTTE_SHADER_DIR");
+    if (buffSize != 0)
+    {
+        buffer = std::vector<wchar_t>(buffSize);
+        _wgetenv_s(&buffSize, buffer.data(), buffer.size(), L"RECOTTE_SHADER_DIR");
+        return std::filesystem::path(buffer.data());
+    }
+
+    static auto pluginDir = RecottePluginFoundation::ResolvePluginPath();
+    return pluginDir.append("RecotteShader");
+}
+
 
 BOOL _FindNextFileW(HANDLE hFindFile, LPWIN32_FIND_DATAW lpFindFileData);
 HANDLE _FindFirstFileW(LPCWSTR lpFileName, LPWIN32_FIND_DATAW lpFindFileData)
@@ -42,34 +60,21 @@ HANDLE _FindFirstFileW(LPCWSTR lpFileName, LPWIN32_FIND_DATAW lpFindFileData)
         }
 
         // Plugin Effectを差し込む
-        if (0 == wcscmp(lpFileName, L"C:\\Program Files\\RecotteStudio\\effects\\effects\\*"))
+        static LPCWSTR types[]{ L"effects", L"text", L"transitions" };
+        for (auto type : types)
         {
-            for (auto handle = find(L"..\\..\\..\\..\\Users\\huser\\Documents\\Project\\RecotteShader\\dst\\effects\\*", &data); handle != INVALID_HANDLE_VALUE && next(handle, &data);)
+            if (lpFileName == std::format(L"C:\\Program Files\\RecotteStudio\\effects\\{}\\*", type))
             {
-                if (0 == wcscmp(data.cFileName, L"..")) continue;
-                auto relative = std::wstring(L"..\\..\\..\\..\\Users\\huser\\Documents\\Project\\RecotteShader\\dst\\effects\\") + data.cFileName;
-                wcscpy_s(data.cFileName, MAX_PATH, relative.c_str());
-                g_FileFindHandles[result]->container.push_back(data);
-            }
-        }
-        if (0 == wcscmp(lpFileName, L"C:\\Program Files\\RecotteStudio\\effects\\text\\*"))
-        {
-            for (auto handle = find(L"..\\..\\..\\..\\Users\\huser\\Documents\\Project\\RecotteShader\\dst\\text\\*", &data); handle != INVALID_HANDLE_VALUE && next(handle, &data);)
-            {
-                if (0 == wcscmp(data.cFileName, L"..")) continue;
-                auto relative = std::wstring(L"..\\..\\..\\..\\Users\\huser\\Documents\\Project\\RecotteShader\\dst\\text\\") + data.cFileName;
-                wcscpy_s(data.cFileName, MAX_PATH, relative.c_str());
-                g_FileFindHandles[result]->container.push_back(data);
-            }
-        }
-        if (0 == wcscmp(lpFileName, L"C:\\Program Files\\RecotteStudio\\effects\\transitions\\*"))
-        {
-            for (auto handle = find(L"..\\..\\..\\..\\Users\\huser\\Documents\\Project\\RecotteShader\\dst\\transitions\\*", &data); handle != INVALID_HANDLE_VALUE && next(handle, &data);)
-            {
-                if (0 == wcscmp(data.cFileName, L"..")) continue;
-                auto relative = std::wstring(L"..\\..\\..\\..\\Users\\huser\\Documents\\Project\\RecotteShader\\dst\\transitions\\") + data.cFileName;
-                wcscpy_s(data.cFileName, MAX_PATH, relative.c_str());
-                g_FileFindHandles[result]->container.push_back(data);
+                static auto recotteShaderDir = ResolveRecotteShaderDirctory();
+                auto dir = std::filesystem::path(recotteShaderDir).append(type);
+                dir = dir.lexically_relative(std::format(L"C:\\Program Files\\RecotteStudio\\effects\\{}", type));
+                for (auto handle = find(std::format(L"{}\\*", dir.c_str()).c_str(), &data); handle != INVALID_HANDLE_VALUE && next(handle, &data);)
+                {
+                    if (0 == wcscmp(data.cFileName, L"..")) continue;
+                    auto relative = std::filesystem::path(dir).append(data.cFileName);
+                    wcscpy_s(data.cFileName, MAX_PATH, relative.c_str());
+                    g_FileFindHandles[result]->container.push_back(data);
+                }
             }
         }
     }
@@ -111,9 +116,12 @@ BOOL _FindClose(HANDLE hFindFile)
 
 HANDLE _CreateFileW(LPCWSTR lpFileName, DWORD dwDesiredAccess, DWORD dwShareMode, LPSECURITY_ATTRIBUTES lpSecurityAttributes, DWORD dwCreationDisposition, DWORD dwFlagsAndAttributes, HANDLE hTemplateFile)
 {
-    if (0 == wcscmp(lpFileName, L".\\effects/lib.lua"))
+    auto path = std::filesystem::path(lpFileName);
+    if (path.parent_path() == L".\\recotte_shader_effect_lib")
     {
-        lpFileName = L"C:\\Users\\huser\\Documents\\Project\\RecotteShader\\dst\\lib.lua";
+        static auto recotteShaderDir = ResolveRecotteShaderDirctory();
+        path = std::filesystem::path(recotteShaderDir).append(L"recotte_shader_effect_lib").append(path.filename().c_str());
+        lpFileName = path.c_str();
     }
 
     OutputDebugStringW(std::format(L"[FileSystemBypass] _CreateFileW {}\n", lpFileName).c_str());

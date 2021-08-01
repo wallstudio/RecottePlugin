@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 #include <functional>
+#include <filesystem>
 
 
 namespace RecottePluginFoundation
@@ -108,5 +109,41 @@ namespace RecottePluginFoundation
 		DWORD oldProtection;
 		VirtualProtect(dst, size, PAGE_EXECUTE_READWRITE, &oldProtection);
 		memcpy(dst, src, size);
+	}
+
+	inline std::filesystem::path ResolvePluginPath()
+	{
+		// アセンブリレベルで互換性のないRecottePluginFundationでも使いたいのでヘッダ実装が必須
+
+		std::vector<wchar_t> buffer;
+		size_t buffSize;
+
+		// 環境変数モード（for Dev）
+		_wgetenv_s(&buffSize, nullptr, 0, L"RECOTTE_PLUGIN_DIR");
+		if (buffSize != 0)
+		{
+			buffer = std::vector<wchar_t>(buffSize);
+			_wgetenv_s(&buffSize, buffer.data(), buffer.size(), L"RECOTTE_PLUGIN_DIR");
+			return std::filesystem::path(buffer.data());
+		}
+
+		// Userディレクトリモード（追加インストールし易いように）
+		_wgetenv_s(&buffSize, nullptr, 0, L"HOMEPATH");
+		buffer = std::vector<wchar_t>(buffSize);
+		_wgetenv_s(&buffSize, buffer.data(), buffer.size(), L"HOMEPATH");
+		if (buffSize != 0)
+		{
+			auto directory = std::filesystem::path(buffer.data()).append("RecottePlugin");
+			if (std::filesystem::exists(directory))
+			{
+				return directory;
+			}
+		}
+
+		// 従来のProgram Filesに直接置くモード
+		buffer = std::vector<wchar_t>(_MAX_PATH);
+		GetModuleFileNameW(GetModuleHandleW(NULL), buffer.data(), buffer.size());
+		auto pluginsDirectroy = std::filesystem::path(buffer.data()).parent_path().append("Plugins");
+		return pluginsDirectroy;
 	}
 }

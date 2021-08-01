@@ -1,5 +1,6 @@
 ﻿#include <map>
 #include <vector>
+#include <filesystem>
 #include <fmt/format.h>
 #include "HookHelper.h"
 
