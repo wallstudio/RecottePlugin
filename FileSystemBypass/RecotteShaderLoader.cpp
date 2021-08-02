@@ -79,7 +79,7 @@ HANDLE _FindFirstFileW(LPCWSTR lpFileName, LPWIN32_FIND_DATAW lpFindFileData)
         }
     }
 
-	OutputDebugStringW(std::format(L"[FileSystemBypass] _FindFirstFileW {} {}\n", lpFileName, lpFindFileData->cFileName).c_str());
+	OutputDebugStringW(std::format(L"[RecotteShaderLoader] _FindFirstFileW {} {}\n", lpFileName, lpFindFileData->cFileName).c_str());
     return result;
 }
 
@@ -87,7 +87,7 @@ HANDLE _FindFirstFileExW(LPCWSTR lpFileName, FINDEX_INFO_LEVELS fInfoLevelId, LP
 {
     auto base = RecottePluginFoundation::LookupFunction<decltype(&_FindFirstFileExW)>("kernel32.dll", "FindFirstFileExW");
     auto result = base(lpFileName, fInfoLevelId, lpFindFileData, fSearchOp, lpSearchFilter, dwAdditionalFlags);
-	OutputDebugStringW(std::format(L"[FileSystemBypass] _FindFirstFileExW {} {}\n", lpFileName, ((WIN32_FIND_DATA*)lpFindFileData)->cFileName).c_str());
+    OutputDebugStringW(std::format(L"[RecotteShaderLoader] _FindFirstFileExW {} {}\n", lpFileName, ((WIN32_FIND_DATA*)lpFindFileData)->cFileName).c_str());
     return result;
 }
 
@@ -102,13 +102,13 @@ BOOL _FindNextFileW(HANDLE hFindFile, LPWIN32_FIND_DATAW lpFindFileData)
         provider->current++;
     }
 
-	OutputDebugStringW(std::format(L"[FileSystemBypass] _FindNextFileW {} {}\n", provider->fileName.c_str(), lpFindFileData->cFileName).c_str());
+    OutputDebugStringW(std::format(L"[RecotteShaderLoader] _FindNextFileW {} {}\n", provider->fileName.c_str(), lpFindFileData->cFileName).c_str());
     return isValid;
 }
 
 BOOL _FindClose(HANDLE hFindFile)
 {
-    OutputDebugStringW(std::format(L"[FileSystemBypass] _FindClose {}\n", g_FileFindHandles[hFindFile]->fileName).c_str());
+    OutputDebugStringW(std::format(L"[RecotteShaderLoader] _FindClose {}\n", g_FileFindHandles[hFindFile]->fileName).c_str());
     auto base = RecottePluginFoundation::LookupFunction<decltype(&_FindClose)>("kernel32.dll", "FindClose");
     g_FileFindHandles.erase(hFindFile);
     return base(hFindFile);
@@ -124,7 +124,7 @@ HANDLE _CreateFileW(LPCWSTR lpFileName, DWORD dwDesiredAccess, DWORD dwShareMode
         lpFileName = path.c_str();
     }
 
-    OutputDebugStringW(std::format(L"[FileSystemBypass] _CreateFileW {}\n", lpFileName).c_str());
+    OutputDebugStringW(std::format(L"[RecotteShaderLoader] _CreateFileW {}\n", lpFileName).c_str());
     auto base = RecottePluginFoundation::LookupFunction<decltype(&_CreateFileW)>("kernel32.dll", "CreateFileW");
     auto result = base(lpFileName, dwDesiredAccess, dwShareMode, lpSecurityAttributes, dwCreationDisposition, dwFlagsAndAttributes, hTemplateFile);
     return result;
@@ -132,7 +132,7 @@ HANDLE _CreateFileW(LPCWSTR lpFileName, DWORD dwDesiredAccess, DWORD dwShareMode
 
 extern "C" __declspec(dllexport) void WINAPI OnPluginStart(HINSTANCE handle)
 {
-	OutputDebugStringW(L"[FileSystemBypass] " __FUNCTION__ "\n");
+    OutputDebugStringW(L"[RecotteShaderLoader] " __FUNCTION__ "\n");
     RecottePluginFoundation::OverrideImportFunction("kernel32.dll", "FindFirstFileW", _FindFirstFileW);
     RecottePluginFoundation::OverrideImportFunction("kernel32.dll", "FindFirstFileExW", _FindFirstFileExW);
     RecottePluginFoundation::OverrideImportFunction("kernel32.dll", "FindNextFileW", _FindNextFileW);
@@ -142,5 +142,5 @@ extern "C" __declspec(dllexport) void WINAPI OnPluginStart(HINSTANCE handle)
 
 extern "C" __declspec(dllexport) void WINAPI OnPluginFinish(HINSTANCE haneld)
 {
-	OutputDebugStringW(L"[FileSystemBypass]" __FUNCTION__ "\n");
+    OutputDebugStringW(L"[RecotteShaderLoader]" __FUNCTION__ "\n");
 }
