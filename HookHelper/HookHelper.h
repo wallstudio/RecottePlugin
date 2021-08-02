@@ -4,6 +4,7 @@
 #include <vector>
 #include <functional>
 #include <filesystem>
+#include <format>
 
 
 namespace RecottePluginFoundation
@@ -133,7 +134,8 @@ namespace RecottePluginFoundation
 		_wgetenv_s(&buffSize, buffer.data(), buffer.size(), L"HOMEPATH");
 		if (buffSize != 0)
 		{
-			auto directory = std::filesystem::path(buffer.data()).append("RecottePlugin");
+			auto userDir = std::format(L"C:{}", buffer.data());
+			auto directory = std::filesystem::path(userDir).append("RecottePlugin");
 			if (std::filesystem::exists(directory))
 			{
 				return directory;

@@ -39,7 +39,7 @@ std::filesystem::path ResolveRecotteShaderDirctory()
     }
 
     static auto pluginDir = RecottePluginFoundation::ResolvePluginPath();
-    return pluginDir.append("RecotteShader");
+    return std::filesystem::path(pluginDir).append("RecotteShader");
 }
 
 
