@@ -6,6 +6,7 @@ RecotteStudioのプラグインです。
 
 ## 対応バージョン
 
+- RecotteStudio v1.4.0.0
 - RecotteStudio v1.3.7.6
 
 ## インストール方法
