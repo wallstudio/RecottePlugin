@@ -16,43 +16,44 @@
 #pragma comment(lib,"Ole32.lib")
 
 void* g_BaseCreateFileW;
-Microsoft::WRL::ComPtr<IMultiLanguage2> ml = nullptr;
+Microsoft::WRL::ComPtr<IMultiLanguage2> g_ml = nullptr;
 
 HANDLE _CreateFileW(LPCWSTR lpFileName, DWORD dwDesiredAccess, DWORD dwShareMode, LPSECURITY_ATTRIBUTES lpSecurityAttributes, DWORD dwCreationDisposition, DWORD dwFlagsAndAttributes, HANDLE hTemplateFile)
 {
     auto path = std::filesystem::path(lpFileName);
+    std::filesystem::path alt;
     if (path.extension() == ".txt")
     {
-        auto alt = path.parent_path() / (path.filename().wstring() + L".sjis.txt");
-        if (!std::filesystem::exists(alt))
-        {
-            HRESULT hr;
-            if (ml == nullptr) hr = CoCreateInstance(CLSID_CMultiLanguage, NULL, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&ml));
-            _ASSERTE(_CrtCheckMemory());
-            // Read
-            DWORD farFileSize;
-            long fileSize = std::filesystem::file_size(path);
-            auto srcBuff = std::vector<char>(fileSize);
-            auto sr = std::ifstream(path);
-            sr.read(srcBuff.data(), fileSize);
-            _ASSERTE(_CrtCheckMemory());
-            // Detect
-            int buffLen = srcBuff.size(), infoLen = 4;
-            auto info = std::vector<DetectEncodingInfo>(infoLen);
-            hr = ml->DetectInputCodepage(MLDETECTCP_NONE, 0, srcBuff.data(), &buffLen, info.data(), &infoLen);
-            _ASSERTE(_CrtCheckMemory());
-            // Convert
-            DWORD mode = 0;
-            auto dstBuff = std::vector<char>(fileSize * 4);
-            UINT srcSize = srcBuff.size(), dstSize = dstBuff.size();
-            hr = ml->ConvertString(&mode, info[0].nCodePage, 932, (BYTE*)srcBuff.data(), &srcSize, (BYTE*)dstBuff.data(), &srcSize);
-            dstBuff.resize(dstSize);
-            _ASSERTE(_CrtCheckMemory());
-            // Write
-            auto sw = std::ofstream(alt);
-            sw.write(dstBuff.data(), dstBuff.size());
-            _ASSERTE(_CrtCheckMemory());
-        }
+        HRESULT hr;
+        if (g_ml == nullptr) hr = CoCreateInstance(CLSID_CMultiLanguage, NULL, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&g_ml));
+        
+        // Read
+        DWORD farFileSize;
+        long fileSize = std::filesystem::file_size(path);
+        auto srcBuff = std::vector<char>(fileSize);
+        auto sr = std::ifstream(path);
+        sr.read(srcBuff.data(), fileSize);
+            
+        // Detect
+        int buffLen = srcBuff.size(), infoLen = 4;
+        auto info = std::vector<DetectEncodingInfo>(infoLen);
+        hr = g_ml->DetectInputCodepage(MLDETECTCP_NONE, 0, srcBuff.data(), &buffLen, info.data(), &infoLen);
+            
+        // Convert
+        DWORD mode = 0;
+        auto dstBuff = std::vector<char>(fileSize * 4);
+        UINT srcSize = srcBuff.size(), dstSize = dstBuff.size();
+        hr = g_ml->ConvertString(&mode, info[0].nCodePage, 932, (BYTE*)srcBuff.data(), &srcSize, (BYTE*)dstBuff.data(), &srcSize);
+        dstBuff.resize(dstSize);
+            
+        // Write
+        auto altName = path.wstring();
+        std::replace(altName.begin(), altName.end(), L':', L'_');
+        std::replace(altName.begin(), altName.end(), L'\\', L'_');
+        alt = std::filesystem::temp_directory_path() / L"RecotteStudioPlugin" / L"MutiEncodeTextReader" / L"sjis" / altName;
+        std::filesystem::create_directories(alt.parent_path());
+        auto sw = std::ofstream(alt);
+        sw.write(dstBuff.data(), dstBuff.size());
         lpFileName = alt.c_str();
     }
 
