@@ -22,6 +22,7 @@ struct FilesProvider
     }
 };
 
+void* g_BaseCreateFileW;
 std::map<HANDLE, std::shared_ptr<FilesProvider>> g_FileFindHandles = std::map<HANDLE, std::shared_ptr<FilesProvider>>();
 
 std::filesystem::path ResolveRecotteShaderDirctory()
@@ -125,9 +126,7 @@ HANDLE _CreateFileW(LPCWSTR lpFileName, DWORD dwDesiredAccess, DWORD dwShareMode
     }
 
     OutputDebugStringW(std::format(L"[RecotteShaderLoader] _CreateFileW {}\n", lpFileName).c_str());
-    auto base = RecottePluginFoundation::LookupFunction<decltype(&_CreateFileW)>("kernel32.dll", "CreateFileW");
-    auto result = base(lpFileName, dwDesiredAccess, dwShareMode, lpSecurityAttributes, dwCreationDisposition, dwFlagsAndAttributes, hTemplateFile);
-    return result;
+    return ((decltype(&_CreateFileW))g_BaseCreateFileW)(lpFileName, dwDesiredAccess, dwShareMode, lpSecurityAttributes, dwCreationDisposition, dwFlagsAndAttributes, hTemplateFile);
 }
 
 extern "C" __declspec(dllexport) void WINAPI OnPluginStart(HINSTANCE handle)
@@ -137,6 +136,8 @@ extern "C" __declspec(dllexport) void WINAPI OnPluginStart(HINSTANCE handle)
     RecottePluginFoundation::OverrideImportFunction("kernel32.dll", "FindFirstFileExW", _FindFirstFileExW);
     RecottePluginFoundation::OverrideImportFunction("kernel32.dll", "FindNextFileW", _FindNextFileW);
     RecottePluginFoundation::OverrideImportFunction("kernel32.dll", "FindClose", _FindClose);
+
+    g_BaseCreateFileW = (void*)RecottePluginFoundation::FindImportAddress("kernel32.dll", "CreateFileW")->u1.AddressOfData;
     RecottePluginFoundation::OverrideImportFunction("kernel32.dll", "CreateFileW", _CreateFileW);
 }
 
