@@ -22,7 +22,7 @@ HANDLE _CreateFileW(LPCWSTR lpFileName, DWORD dwDesiredAccess, DWORD dwShareMode
 {
     auto path = std::filesystem::path(lpFileName);
     std::filesystem::path alt;
-    if (path.extension() == ".txt")
+    if (path.extension() == ".txt" && dwDesiredAccess == GENERIC_READ)
     {
         HRESULT hr;
         if (g_ml == nullptr) hr = CoCreateInstance(CLSID_CMultiLanguage, NULL, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&g_ml));
