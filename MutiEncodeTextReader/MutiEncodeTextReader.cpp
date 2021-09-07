@@ -66,8 +66,8 @@ extern "C" __declspec(dllexport) void WINAPI OnPluginStart(HINSTANCE handle)
 {
     OutputDebugStringW(L"[RecotteShaderLoader] " __FUNCTION__ "\n");
 
-    g_BaseCreateFileW = (void*)RecottePluginFoundation::FindImportAddress("kernel32.dll", "CreateFileW")->u1.AddressOfData;
-    RecottePluginFoundation::OverrideImportFunction("kernel32.dll", "CreateFileW", _CreateFileW);
+    g_BaseCreateFileW = (void*)RecottePluginFoundation::LockupMappedFunctionFromIAT("kernel32.dll", "CreateFileW")->u1.AddressOfData;
+    RecottePluginFoundation::OverrideIATFunction("kernel32.dll", "CreateFileW", _CreateFileW);
 }
 
 extern "C" __declspec(dllexport) void WINAPI OnPluginFinish(HINSTANCE haneld)

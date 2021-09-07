@@ -16,61 +16,21 @@ namespace RecottePluginFoundation
 		return reinterpret_cast<T*>(va);
 	}
 
-	template<typename T>
-	T* RvaToVa(SIZE_T offset) { return Offset<T>(GetModuleHandleW(nullptr), offset); }
 
-	IMAGE_THUNK_DATA* FindImportAddress(const std::string& moduleName, const std::string& functionName);
+	// IAT utilities
 
-	extern bool OverrideImportFunction(const std::string& moduleName, const std::string& functionName, void* overrideFunction);
-
-	FARPROC LookupFunction(const std::string& moduleName, const std::string& functionName);
+	IMAGE_THUNK_DATA* LockupMappedFunctionFromIAT(const std::string& moduleName, const std::string& functionName);
+	FARPROC LookupFunctionDirect(const std::string& moduleName, const std::string& functionName);
+	extern bool OverrideIATFunction(const std::string& moduleName, const std::string& functionName, void* overrideFunction);
 
 	template<typename TDelegate>
-	extern TDelegate LookupFunction(const std::string& moduleName, const std::string& functionName)
+	extern TDelegate LookupFunctionDirect(const std::string& moduleName, const std::string& functionName)
 	{
-		return reinterpret_cast<TDelegate>(LookupFunction(moduleName, functionName));
+		return reinterpret_cast<TDelegate>(LookupFunctionDirect(moduleName, functionName));
 	}
 
-	template<size_t Size>
-	void InjectInstructions(void* injecteeAddress, void* hookFunctionPtr, int hookFuncOperandOffset, std::array<unsigned char, Size> machineCode)
-	{
-		if (injecteeAddress == nullptr)
-		{
-			return;
-		}
 
-		auto jmpAddress = (void**)&machineCode[hookFuncOperandOffset];
-		*jmpAddress = hookFunctionPtr;
-		DWORD oldProtection;
-		VirtualProtect(injecteeAddress, machineCode.size(), PAGE_EXECUTE_READWRITE, &oldProtection);
-		memcpy(injecteeAddress, machineCode.data(), machineCode.size());
-	}
-
-	template<size_t Size>
-	unsigned char* SearchAddress(std::array<unsigned char, Size> markerSequence)
-	{
-		unsigned char* address = nullptr;
-		MEMORY_BASIC_INFORMATION info;
-		HANDLE handle = OpenProcess(PROCESS_ALL_ACCESS, FALSE, GetCurrentProcessId());
-		while (VirtualQueryEx(handle, address, &info, sizeof(info)))
-		{
-			if (info.Type == MEM_IMAGE)
-			{
-				auto buffer = std::vector<unsigned char>(info.RegionSize);
-				ReadProcessMemory(handle, address, buffer.data(), info.RegionSize, nullptr);
-
-				for (size_t i = 0; i < buffer.size(); i++)
-				{
-					if (0 == memcmp(buffer.data() + i, markerSequence.data(), markerSequence.size()))
-					{
-						return address + i;
-					}
-				}
-			}
-			address += info.RegionSize;
-		}
-		return nullptr;
-	}
+	// Instruction code utilities
 
 	template<size_t Size>
 	void InjectInstructions(void* hookFunctionPtr, int hookFuncOperandOffset, std::array<unsigned char, Size> markerSequence, std::array<unsigned char, Size> machineCode)
@@ -78,7 +38,6 @@ namespace RecottePluginFoundation
 		void* injecteeAddress = SearchAddress(markerSequence);
 		InjectInstructions(injecteeAddress, hookFunctionPtr, hookFuncOperandOffset, machineCode);
 	}
-
 
 	inline std::byte* SearchAddress(std::function<bool(std::byte*)> predicate)
 	{
@@ -112,11 +71,17 @@ namespace RecottePluginFoundation
 		memcpy(dst, src, size);
 	}
 
+
+	// Directory utilities
+
 	inline std::filesystem::path ResolveApplicationDir()
 	{
 		auto exePathBuffer = std::vector<wchar_t>(_MAX_PATH);
 		GetModuleFileNameW(GetModuleHandleW(NULL), exePathBuffer.data(), exePathBuffer.size());
-		return std::filesystem::path(exePathBuffer.data()).parent_path();
+		auto path = std::filesystem::path(exePathBuffer.data()).parent_path();
+
+		if (!std::filesystem::exists(path)) throw std::runtime_error(std::format("invalid path {} (app)", path.string()).c_str());
+		return path;
 	}
 
 	inline std::filesystem::path ResolvePluginPath()
@@ -132,7 +97,10 @@ namespace RecottePluginFoundation
 		{
 			buffer = std::vector<wchar_t>(buffSize);
 			_wgetenv_s(&buffSize, buffer.data(), buffer.size(), L"RECOTTE_PLUGIN_DIR");
-			return std::filesystem::path(buffer.data());
+			auto path = std::filesystem::path(buffer.data());
+
+			if (!std::filesystem::exists(path)) throw std::runtime_error(std::format("invalid path {} (env)", path.string()).c_str());
+			return path;
 		}
 
 		// Userディレクトリモード（追加インストールし易いように）
@@ -142,14 +110,12 @@ namespace RecottePluginFoundation
 		if (buffSize != 0)
 		{
 			auto userDir = std::format(L"C:{}", buffer.data());
-			auto directory = std::filesystem::path(userDir) / "RecottePlugin";
-			if (std::filesystem::exists(directory))
-			{
-				return directory;
-			}
+			auto path = std::filesystem::path(userDir) / "RecottePlugin";
+
+			if (!std::filesystem::exists(path)) throw std::runtime_error(std::format("invalid path {} (home)", path.string()).c_str());
+			return path;
 		}
 
-		// 従来のProgram Filesに直接置くモード
-		return ResolveApplicationDir() / "Plugins";
+		throw std::runtime_error(std::format("invalid path unknown").c_str());
 	}
 }

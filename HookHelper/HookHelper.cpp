@@ -7,7 +7,10 @@
 
 namespace RecottePluginFoundation
 {
-	IMAGE_THUNK_DATA* FindImportAddress(const std::string& moduleName, const std::string& functionName)
+	template<typename T>
+	T* RvaToVa(SIZE_T offset) { return Offset<T>(GetModuleHandleW(nullptr), offset); }
+
+	IMAGE_THUNK_DATA* LockupMappedFunctionFromIAT(const std::string& moduleName, const std::string& functionName)
 	{
 		PIMAGE_DOS_HEADER pImgDosHeaders = reinterpret_cast<PIMAGE_DOS_HEADER>(GetModuleHandleW(nullptr));
 		PIMAGE_NT_HEADERS pImgNTHeaders = Offset<IMAGE_NT_HEADERS>(pImgDosHeaders, pImgDosHeaders->e_lfanew);
@@ -19,7 +22,7 @@ namespace RecottePluginFoundation
 			return nullptr;
 		}
 
-		OutputDebugStringA(fmt::format("[TestPlugin] FindImportAddress {0}\n", functionName).c_str());
+		OutputDebugStringA(fmt::format("[TestPlugin] LockupMappedFunctionFromIAT {0}\n", functionName).c_str());
 		for (IMAGE_IMPORT_DESCRIPTOR* iid = pImgImportDesc; iid->Name != NULL; iid++)
 		{
 			if (0 != _stricmp(moduleName.c_str(), RvaToVa<char>(iid->Name))) continue;
@@ -37,22 +40,7 @@ namespace RecottePluginFoundation
 		return nullptr;
 	}
 
-	bool OverrideImportFunction(const std::string& moduleName, const std::string& functionName, void* overrideFunction)
-	{
-		auto importAddress = FindImportAddress(moduleName, functionName);
-		if (importAddress == nullptr)
-		{
-			OutputDebugStringA(fmt::format("[TestPlugin] Not found ImportAddress {0}::{1}\n", moduleName, functionName).c_str());
-			return false;
-		}
-
-		DWORD oldrights, newrights = PAGE_READWRITE;
-		VirtualProtect(importAddress, sizeof(LPVOID), newrights, &oldrights);
-		importAddress->u1.Function = reinterpret_cast<LONGLONG>(overrideFunction);
-		VirtualProtect(importAddress, sizeof(LPVOID), oldrights, &newrights);
-	}
-
-	FARPROC LookupFunction(const std::string& moduleName, const std::string& functionName)
+	FARPROC LookupFunctionDirect(const std::string& moduleName, const std::string& functionName)
 	{
 		static std::map<std::string, FARPROC> baseFunctions = std::map<std::string, FARPROC>();
 
@@ -74,6 +62,21 @@ namespace RecottePluginFoundation
 			baseFunctions[id] = function;
 		}
 		return baseFunctions[id];
+	}
+
+	bool OverrideIATFunction(const std::string& moduleName, const std::string& functionName, void* overrideFunction)
+	{
+		auto importAddress = LockupMappedFunctionFromIAT(moduleName, functionName);
+		if (importAddress == nullptr)
+		{
+			OutputDebugStringA(fmt::format("[TestPlugin] Not found ImportAddress {0}::{1}\n", moduleName, functionName).c_str());
+			return false;
+		}
+
+		DWORD oldrights, newrights = PAGE_READWRITE;
+		VirtualProtect(importAddress, sizeof(LPVOID), newrights, &oldrights);
+		importAddress->u1.Function = reinterpret_cast<LONGLONG>(overrideFunction);
+		VirtualProtect(importAddress, sizeof(LPVOID), oldrights, &newrights);
 	}
 
 }

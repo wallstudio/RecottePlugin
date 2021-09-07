@@ -23,7 +23,7 @@ std::map<HWND, TimelineLabelItemExSetting*> TimelineWidnowLabelsItems = std::map
 
 HWND _CreateWindowExW(DWORD dwExStyle, LPCWSTR lpClassName, LPCWSTR lpWindowName, DWORD dwStyle, int X, int Y, int nWidth, int nHeight, HWND hWndParent, HMENU hMenu, HINSTANCE hInstance, LPVOID lpParam)
 {
-	auto hwnd = RecottePluginFoundation::LookupFunction<decltype(&_CreateWindowExW)>("user32.dll", "CreateWindowExW")
+	auto hwnd = RecottePluginFoundation::LookupFunctionDirect<decltype(&_CreateWindowExW)>("user32.dll", "CreateWindowExW")
 		(dwExStyle, lpClassName, lpWindowName, dwStyle, X, Y, nWidth, nHeight, hWndParent, hMenu, hInstance, lpParam);
 
 	if (lpWindowName != nullptr && std::wstring(lpWindowName) == L"タイムライン")
@@ -147,7 +147,7 @@ extern "C" __declspec(dllexport) void WINAPI OnPluginStart(HINSTANCE handle)
 {
 	OutputDebugStringW(L"[LayerFolding] OnPluginStart\n");
 
-	RecottePluginFoundation::OverrideImportFunction("user32.dll", "CreateWindowExW", _CreateWindowExW);
+	RecottePluginFoundation::OverrideIATFunction("user32.dll", "CreateWindowExW", _CreateWindowExW);
 
 	{
 		// 話者レイヤー
