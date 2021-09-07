@@ -23,21 +23,17 @@ Gdiplus::GpStatus Hook_DrawTimeline_GdipGraphicsClear(Gdiplus::GpGraphics* graph
 	static Gdiplus::GpBitmap* bitmap = nullptr;
 	if (bitmap == nullptr)
 	{
-		auto exePathBuffer = std::vector<wchar_t>(_MAX_PATH);
-		GetModuleFileNameW(GetModuleHandleW(NULL), exePathBuffer.data(), exePathBuffer.size());
-		auto exeDir = std::filesystem::path(exePathBuffer.data()).parent_path().string();
-		auto pluginDir = std::filesystem::path(exeDir).append("Plugins").string();
-
-		auto file = std::filesystem::path(pluginDir).append("skin.png").wstring();
-		if (!std::filesystem::exists(std::filesystem::path(file)))
+		static auto pluginDir = RecottePluginFoundation::ResolvePluginPath();
+		auto file = pluginDir / "skin.png";
+		if (!std::filesystem::exists(file))
 		{
-			auto rsp = std::filesystem::path(exeDir).append("models").append("2D-Maki_shihuku.rsp").string();
-			auto packer = std::filesystem::path(pluginDir).append("Png2RspConverter.exe").string();
-			auto tmp = std::filesystem::temp_directory_path().append("RecotteStudioPlugin").append(std::filesystem::path(rsp).filename().string()).string();
-			file = std::filesystem::path(tmp).append("action10_o.png").wstring();
+			static auto rsp = RecottePluginFoundation::ResolveApplicationDir() / "models" / "2D-Maki_shihuku.rsp";
+			auto tmpDir = std::filesystem::temp_directory_path() / "RecottePlugin" / rsp.filename();
+			file = tmpDir / "action10_o.png";
 			if (!std::filesystem::exists(file))
 			{
-				auto command = std::format("\"    \"{}\" --unpack \"{}\" \"{}\"    \"", packer, rsp, tmp);
+				auto packer = RecottePluginFoundation::ResolvePluginPath() / "Png2RspConverter.exe";
+				auto command = std::format("\"    \"{}\" --unpack \"{}\" \"{}\"    \"", packer.string(), rsp.string(), tmpDir.string());
 				OutputDebugStringA(std::format("{}\n", command).c_str());
 				auto result = std::system(command.c_str());
 				if(result != 0) OutputDebugStringA(std::format("Command failed {}\n", result).c_str());

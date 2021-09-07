@@ -40,7 +40,7 @@ std::filesystem::path ResolveRecotteShaderDirctory()
     }
 
     static auto pluginDir = RecottePluginFoundation::ResolvePluginPath();
-    return std::filesystem::path(pluginDir).append("RecotteShader");
+    return pluginDir / "RecotteShader";
 }
 
 
@@ -67,12 +67,12 @@ HANDLE _FindFirstFileW(LPCWSTR lpFileName, LPWIN32_FIND_DATAW lpFindFileData)
             if (lpFileName == std::format(L"C:\\Program Files\\RecotteStudio\\effects\\{}\\*", type))
             {
                 static auto recotteShaderDir = ResolveRecotteShaderDirctory();
-                auto dir = std::filesystem::path(recotteShaderDir).append(type);
+                auto dir = recotteShaderDir / type;
                 dir = dir.lexically_relative(std::format(L"C:\\Program Files\\RecotteStudio\\effects\\{}", type));
-                for (auto handle = find(std::format(L"{}\\*", dir.c_str()).c_str(), &data); handle != INVALID_HANDLE_VALUE && next(handle, &data);)
+                for (auto handle = find(std::format(L"{}\\*", dir.wstring()).c_str(), &data); handle != INVALID_HANDLE_VALUE && next(handle, &data);)
                 {
                     if (0 == wcscmp(data.cFileName, L"..")) continue;
-                    auto relative = std::filesystem::path(dir).append(data.cFileName);
+                    auto relative = dir / data.cFileName;
                     wcscpy_s(data.cFileName, MAX_PATH, relative.c_str());
                     g_FileFindHandles[result]->container.push_back(data);
                 }
@@ -121,7 +121,7 @@ HANDLE _CreateFileW(LPCWSTR lpFileName, DWORD dwDesiredAccess, DWORD dwShareMode
     if (path.parent_path() == L".\\recotte_shader_effect_lib")
     {
         static auto recotteShaderDir = ResolveRecotteShaderDirctory();
-        path = std::filesystem::path(recotteShaderDir).append(L"recotte_shader_effect_lib").append(path.filename().c_str());
+        path = recotteShaderDir / "recotte_shader_effect_lib" / path.filename();
         lpFileName = path.c_str();
     }
 

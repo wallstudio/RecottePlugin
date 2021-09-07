@@ -112,6 +112,13 @@ namespace RecottePluginFoundation
 		memcpy(dst, src, size);
 	}
 
+	inline std::filesystem::path ResolveApplicationDir()
+	{
+		auto exePathBuffer = std::vector<wchar_t>(_MAX_PATH);
+		GetModuleFileNameW(GetModuleHandleW(NULL), exePathBuffer.data(), exePathBuffer.size());
+		return std::filesystem::path(exePathBuffer.data()).parent_path();
+	}
+
 	inline std::filesystem::path ResolvePluginPath()
 	{
 		// アセンブリレベルで互換性のないRecottePluginFundationでも使いたいのでヘッダ実装が必須
@@ -135,7 +142,7 @@ namespace RecottePluginFoundation
 		if (buffSize != 0)
 		{
 			auto userDir = std::format(L"C:{}", buffer.data());
-			auto directory = std::filesystem::path(userDir).append("RecottePlugin");
+			auto directory = std::filesystem::path(userDir) / "RecottePlugin";
 			if (std::filesystem::exists(directory))
 			{
 				return directory;
@@ -143,9 +150,6 @@ namespace RecottePluginFoundation
 		}
 
 		// 従来のProgram Filesに直接置くモード
-		buffer = std::vector<wchar_t>(_MAX_PATH);
-		GetModuleFileNameW(GetModuleHandleW(NULL), buffer.data(), buffer.size());
-		auto pluginsDirectroy = std::filesystem::path(buffer.data()).parent_path().append("Plugins");
-		return pluginsDirectroy;
+		return ResolveApplicationDir() / "Plugins";
 	}
 }

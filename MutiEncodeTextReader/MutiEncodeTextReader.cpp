@@ -50,7 +50,7 @@ HANDLE _CreateFileW(LPCWSTR lpFileName, DWORD dwDesiredAccess, DWORD dwShareMode
         auto altName = path.wstring();
         std::replace(altName.begin(), altName.end(), L':', L'_');
         std::replace(altName.begin(), altName.end(), L'\\', L'_');
-        alt = std::filesystem::temp_directory_path() / L"RecotteStudioPlugin" / L"MutiEncodeTextReader" / L"sjis" / altName;
+        alt = std::filesystem::temp_directory_path() / L"RecottePlugin" / L"MutiEncodeTextReader" / L"sjis" / altName;
         std::filesystem::create_directories(alt.parent_path());
         auto sw = std::ofstream(alt);
         sw.write(dstBuff.data(), dstBuff.size());
