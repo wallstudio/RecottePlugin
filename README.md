@@ -72,6 +72,20 @@ RecotteStudioが`*.txt`ファイルを読み込む際に、本来であれば`sh
 [RecotteShader](https://github.com/wallstudio/RecotteShader)を読み込む機能です。
 詳細はRecotteShader側のドキュメントを参照してください。
 
+## 不具合報告
+
+issuesまたは、[@yukawallstudio](https://twitter.com/yukawallstudio) までお問い合わせください。内容は以下のテンプレートを参考にしてください。
+
+```
+RecotteStudio本体のVersion: (例) v1.4.0.0
+RecottePluginのVersion: (例) v0.1.3
+OS: (例) Windows 10 Pro
+PCの型番: GARAGARA-3000-BT
+エラーメッセージ: (出来ればスクリーンショットで添付)
+その他:
+クラッシュダンプ: (ある場合は "C:\Users\<ユーザー名>\AppData\Local\CrashDumps" 内のDMPファイルを添付する)
+```
+
 ## ビルド環境
 
 - VisualStudio2019 16.10.2
