@@ -14,41 +14,56 @@ std::vector<HINSTANCE> g_Plugins;
 void OnAttach()
 {
 	OutputDebugStringA("ProxyDLL loaded!\n");
-
-	auto pluginsDirectroy = RecottePluginFoundation::ResolvePluginPath();
-	for (auto pluginFile : std::filesystem::directory_iterator(pluginsDirectroy))
+	try
 	{
-		auto s = pluginFile.path().extension().string();
-		if (pluginFile.path().extension().string() != ".dll") continue;
-		if (pluginFile.path().filename().string() == "RecottePluginFoundation.dll") continue;
-		if (pluginFile.path().filename().string() == "d3d11.dll") continue;
-
-		auto plugin = LoadLibraryA(pluginFile.path().string().c_str());
-		if (plugin == nullptr) continue;
-
-		g_Plugins.push_back(plugin);
-
-		auto callback = reinterpret_cast<void (WINAPI*)(HINSTANCE)>(GetProcAddress(plugin, "OnPluginStart"));
-		if (callback != nullptr)
+		static auto pluginsDirectroy = RecottePluginFoundation::ResolvePluginPath();
+		for (auto pluginFile : std::filesystem::directory_iterator(pluginsDirectroy))
 		{
-			callback(hLibMine);
+			auto s = pluginFile.path().extension().string();
+			if (pluginFile.path().extension().string() != ".dll") continue;
+			if (pluginFile.path().filename().string() == "RecottePluginFoundation.dll") continue;
+			if (pluginFile.path().filename().string() == "d3d11.dll") continue;
+
+			auto plugin = LoadLibraryA(pluginFile.path().string().c_str());
+			if (plugin == nullptr) continue;
+
+			g_Plugins.push_back(plugin);
+
+			auto callback = reinterpret_cast<void (WINAPI*)(HINSTANCE)>(GetProcAddress(plugin, "OnPluginStart"));
+			if (callback != nullptr)
+			{
+				callback(hLibMine);
+			}
 		}
+	}
+	catch (std::exception& e)
+	{
+		MessageBoxA(nullptr, e.what(), "RecottePlugin", MB_ICONERROR);
+		throw;
 	}
 }
 
 void OnDetach()
 {
-	for (auto plugin : g_Plugins)
-	{
-		auto callback = reinterpret_cast<void (WINAPI*)(HINSTANCE)>(GetProcAddress(plugin, "OnPluginFinish"));
-		if (callback != nullptr)
-		{
-			callback(hLibMine);
-		}
-
-		FreeLibrary(plugin);
-	}
 	OutputDebugStringA("ProxyDLL unloaded!\n");
+	try
+	{
+		for (auto plugin : g_Plugins)
+		{
+			auto callback = reinterpret_cast<void (WINAPI*)(HINSTANCE)>(GetProcAddress(plugin, "OnPluginFinish"));
+			if (callback != nullptr)
+			{
+				callback(hLibMine);
+			}
+
+			FreeLibrary(plugin);
+		}
+	}
+	catch (std::exception& e)
+	{
+		MessageBoxA(nullptr, e.what(), "RecottePlugin", MB_ICONERROR);
+		throw;
+	}
 }
 
 BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
