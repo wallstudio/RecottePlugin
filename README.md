@@ -29,6 +29,14 @@ C:\Users\<ユーザー名>
         └ …
 ```
 
+#### アップデート（`v0.1.1` 未満から）
+
+`C:\Program Files\RecotteStudio\Plugins\`, `C:\Program Files\RecotteStudio\d3d11.dll` を削除して、[インストール](#インストール方法)
+ 
+#### アップデート（`v0.1.1` 以上から）
+
+`C:\Users\<ユーザー名>\RecottePlugin\` を削除して、[インストール](#インストール方法)
+
 ## 機能
 
 #### RecottePluginFoundation
