@@ -23,7 +23,7 @@ std::map<HWND, TimelineLabelItemExSetting*> TimelineWidnowLabelsItems = std::map
 
 HWND _CreateWindowExW(DWORD dwExStyle, LPCWSTR lpClassName, LPCWSTR lpWindowName, DWORD dwStyle, int X, int Y, int nWidth, int nHeight, HWND hWndParent, HMENU hMenu, HINSTANCE hInstance, LPVOID lpParam)
 {
-	auto hwnd = RecottePluginFoundation::LookupFunctionDirect<decltype(&_CreateWindowExW)>("user32.dll", "CreateWindowExW")
+	auto hwnd = RecottePluginFoundation::LookupFunctionFromWin32Api<decltype(&_CreateWindowExW)>("user32.dll", "CreateWindowExW")
 		(dwExStyle, lpClassName, lpWindowName, dwStyle, X, Y, nWidth, nHeight, hWndParent, hMenu, hInstance, lpParam);
 
 	if (lpWindowName != nullptr && std::wstring(lpWindowName) == L"タイムライン")
@@ -108,8 +108,7 @@ void Hook_CalcLayerHeight(LayerObj* layerObj)
 		|| layerObj->WindowObj->Hwnd == nullptr
 		|| !TimelineWidnowLabelsItems.contains(layerObj->WindowObj->Hwnd))
 	{
-		// RSPの読み込みタイミングによって、CreateWindowより先に来ることがあるっぽい
-		return;
+		return; // RSPの読み込みタイミングによって、CreateWindowより先に来ることがあるっぽい
 	}
 
 	auto additionalSetting = TimelineWidnowLabelsItems[layerObj->WindowObj->Hwnd];
@@ -132,9 +131,9 @@ void Hook_CalcLayerHeight2(float xmm0, LayerObj* layerObj)
 		|| layerObj->WindowObj->Hwnd == nullptr
 		|| !TimelineWidnowLabelsItems.contains(layerObj->WindowObj->Hwnd))
 	{
-		// RSPの読み込みタイミングによって、CreateWindowより先に来ることがあるっぽい
-		return;
+		return; // RSPの読み込みタイミングによって、CreateWindowより先に来ることがあるっぽい
 	}
+
 	auto additionalSetting = TimelineWidnowLabelsItems[layerObj->WindowObj->Hwnd];
 	if (additionalSetting->Folding)
 	{
@@ -181,18 +180,15 @@ extern "C" __declspec(dllexport) void WINAPI OnPluginStart(HINSTANCE handle)
 
 			return true;
 		});
-		if (target != nullptr)
+		auto part3 = std::vector<unsigned char>
 		{
-			auto part3 = std::vector<unsigned char>
-			{
-				0x48, 0x8B, 0xCF, // mov rcx, rdi
-				0x48, 0xB8, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // mov rax, 0FFFFFFFFFFFFFFFFh
-				0xFF, 0xD0, // call rax
-				0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, // nop x7
-			};
-			*(void**)(part3.data() + 3 + 2) = &Hook_CalcLayerHeight;
-			RecottePluginFoundation::MemoryCopyAvoidingProtection(target, part3.data(), part3.size());
-		}
+			0x48, 0x8B, 0xCF, // mov rcx, rdi
+			0x48, 0xB8, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // mov rax, 0FFFFFFFFFFFFFFFFh
+			0xFF, 0xD0, // call rax
+			0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, // nop x7
+		};
+		*(void**)(part3.data() + 3 + 2) = &Hook_CalcLayerHeight;
+		RecottePluginFoundation::MemoryCopyAvoidingProtection(target, part3.data(), part3.size());
 	}
 
 	{
@@ -221,19 +217,16 @@ extern "C" __declspec(dllexport) void WINAPI OnPluginStart(HINSTANCE handle)
 
 			return true;
 		});
-		if (target != nullptr)
+		auto part3 = std::vector<unsigned char>
 		{
-			auto part3 = std::vector<unsigned char>
-			{
-				0x48, 0x8B, 0b11'010'011, // mov rdx, rbx
-				0x48, 0xB8, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // mov rax, 0FFFFFFFFFFFFFFFFh
-				0xFF, 0xD0, // call rax
-				0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, // nop
-				0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, // nop
-			};
-			*(void**)(part3.data() + 3 + 2) = &Hook_CalcLayerHeight2;
-			RecottePluginFoundation::MemoryCopyAvoidingProtection(target, part3.data(), part3.size());
-		}
+			0x48, 0x8B, 0b11'010'011, // mov rdx, rbx
+			0x48, 0xB8, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // mov rax, 0FFFFFFFFFFFFFFFFh
+			0xFF, 0xD0, // call rax
+			0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, // nop
+			0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, // nop
+		};
+		*(void**)(part3.data() + 3 + 2) = &Hook_CalcLayerHeight2;
+		RecottePluginFoundation::MemoryCopyAvoidingProtection(target, part3.data(), part3.size());
 	}
 }
 

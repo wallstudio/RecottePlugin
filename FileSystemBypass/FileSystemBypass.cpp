@@ -47,12 +47,12 @@ std::filesystem::path ResolveRecotteShaderDirctory()
 BOOL _FindNextFileW(HANDLE hFindFile, LPWIN32_FIND_DATAW lpFindFileData);
 HANDLE _FindFirstFileW(LPCWSTR lpFileName, LPWIN32_FIND_DATAW lpFindFileData)
 {
-    auto base = RecottePluginFoundation::LookupFunctionDirect<decltype(&_FindFirstFileW)>("kernel32.dll", "FindFirstFileW");
+    auto base = RecottePluginFoundation::LookupFunctionFromWin32Api<decltype(&_FindFirstFileW)>("kernel32.dll", "FindFirstFileW");
     auto result = base(lpFileName, lpFindFileData);
 
     {
-        auto find = RecottePluginFoundation::LookupFunctionDirect<decltype(&_FindFirstFileW)>("kernel32.dll", "FindFirstFileW");
-        auto next = RecottePluginFoundation::LookupFunctionDirect<decltype(&_FindNextFileW)>("kernel32.dll", "FindNextFileW");
+        auto find = RecottePluginFoundation::LookupFunctionFromWin32Api<decltype(&_FindFirstFileW)>("kernel32.dll", "FindFirstFileW");
+        auto next = RecottePluginFoundation::LookupFunctionFromWin32Api<decltype(&_FindNextFileW)>("kernel32.dll", "FindNextFileW");
         WIN32_FIND_DATAW data;
         g_FileFindHandles[result] = std::shared_ptr<FilesProvider>(new FilesProvider(lpFileName));
         for (auto handle = find(lpFileName, &data); handle != INVALID_HANDLE_VALUE && next(handle, &data);)
@@ -86,7 +86,7 @@ HANDLE _FindFirstFileW(LPCWSTR lpFileName, LPWIN32_FIND_DATAW lpFindFileData)
 
 HANDLE _FindFirstFileExW(LPCWSTR lpFileName, FINDEX_INFO_LEVELS fInfoLevelId, LPVOID lpFindFileData, FINDEX_SEARCH_OPS fSearchOp, LPVOID lpSearchFilter, DWORD dwAdditionalFlags)
 {
-    auto base = RecottePluginFoundation::LookupFunctionDirect<decltype(&_FindFirstFileExW)>("kernel32.dll", "FindFirstFileExW");
+    auto base = RecottePluginFoundation::LookupFunctionFromWin32Api<decltype(&_FindFirstFileExW)>("kernel32.dll", "FindFirstFileExW");
     auto result = base(lpFileName, fInfoLevelId, lpFindFileData, fSearchOp, lpSearchFilter, dwAdditionalFlags);
     OutputDebugStringW(std::format(L"[RecotteShaderLoader] _FindFirstFileExW {} {}\n", lpFileName, ((WIN32_FIND_DATA*)lpFindFileData)->cFileName).c_str());
     return result;
@@ -110,7 +110,7 @@ BOOL _FindNextFileW(HANDLE hFindFile, LPWIN32_FIND_DATAW lpFindFileData)
 BOOL _FindClose(HANDLE hFindFile)
 {
     OutputDebugStringW(std::format(L"[RecotteShaderLoader] _FindClose {}\n", g_FileFindHandles[hFindFile]->fileName).c_str());
-    auto base = RecottePluginFoundation::LookupFunctionDirect<decltype(&_FindClose)>("kernel32.dll", "FindClose");
+    auto base = RecottePluginFoundation::LookupFunctionFromWin32Api<decltype(&_FindClose)>("kernel32.dll", "FindClose");
     g_FileFindHandles.erase(hFindFile);
     return base(hFindFile);
 }

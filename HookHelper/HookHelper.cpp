@@ -7,6 +7,12 @@
 
 namespace RecottePluginFoundation
 {
+	const auto EMSG_NOT_DOS_DLL = "システムライブラリがWindows用ライブラリとして認識できませんでした\r\n{0}::{1}";
+	const auto EMSG_NOT_FOUND_FUNC_IN_DLL = "上書き対象のシステムライブラリ内機能を見つけられませんでした\r\n{0}::{1}";
+	const auto EMSG_NOT_FOUND_DLL = "システムライブラリを見つけられませんでした\r\n{}";
+	const auto EMSG_NOT_FOUND_IAT = "システムライブラリ内機能を見つけられませんでした\r\n{}";
+
+
 	template<typename T>
 	T* RvaToVa(SIZE_T offset) { return Offset<T>(GetModuleHandleW(nullptr), offset); }
 
@@ -16,13 +22,8 @@ namespace RecottePluginFoundation
 		PIMAGE_NT_HEADERS pImgNTHeaders = Offset<IMAGE_NT_HEADERS>(pImgDosHeaders, pImgDosHeaders->e_lfanew);
 		PIMAGE_IMPORT_DESCRIPTOR pImgImportDesc = Offset<IMAGE_IMPORT_DESCRIPTOR>(pImgDosHeaders, pImgNTHeaders->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT].VirtualAddress);
 
-		if (pImgDosHeaders->e_magic != IMAGE_DOS_SIGNATURE)
-		{
-			OutputDebugStringW(L"[TestPlugin] libPE Error : e_magic is no valid DOS signature\n");
-			return nullptr;
-		}
+		if (pImgDosHeaders->e_magic != IMAGE_DOS_SIGNATURE) throw std::runtime_error(fmt::format(EMSG_NOT_DOS_DLL, moduleName, functionName).c_str());
 
-		OutputDebugStringA(fmt::format("[TestPlugin] LockupMappedFunctionFromIAT {0}\n", functionName).c_str());
 		for (IMAGE_IMPORT_DESCRIPTOR* iid = pImgImportDesc; iid->Name != NULL; iid++)
 		{
 			if (0 != _stricmp(moduleName.c_str(), RvaToVa<char>(iid->Name))) continue;
@@ -37,10 +38,10 @@ namespace RecottePluginFoundation
 				return RvaToVa<IMAGE_THUNK_DATA>(iid->FirstThunk) + funcIdx;
 			}
 		}
-		return nullptr;
+		throw std::runtime_error(fmt::format(EMSG_NOT_FOUND_FUNC_IN_DLL, moduleName, functionName).c_str());;
 	}
 
-	FARPROC LookupFunctionDirect(const std::string& moduleName, const std::string& functionName)
+	FARPROC LookupFunctionFromWin32Api(const std::string& moduleName, const std::string& functionName)
 	{
 		static std::map<std::string, FARPROC> baseFunctions = std::map<std::string, FARPROC>();
 
@@ -48,34 +49,22 @@ namespace RecottePluginFoundation
 		if (!baseFunctions.contains(id))
 		{
 			auto module = GetModuleHandleA(moduleName.c_str());
-			if (module == nullptr)
-			{
-				OutputDebugStringA(fmt::format("[TestPlugin] Not found module {0}\n", moduleName).c_str());
-				return nullptr;
-			}
+			if (module == nullptr) throw std::runtime_error(fmt::format(EMSG_NOT_FOUND_DLL, id).c_str());;
+
 			auto function = GetProcAddress(module, functionName.c_str());
-			if (function == nullptr)
-			{
-				OutputDebugStringA(fmt::format("[TestPlugin] Not found function {0}\n", id).c_str());
-				return nullptr;
-			}
+			if (function == nullptr) throw std::runtime_error(fmt::format(EMSG_NOT_FOUND_IAT, id).c_str());;
+			
 			baseFunctions[id] = function;
 		}
 		return baseFunctions[id];
 	}
 
-	bool OverrideIATFunction(const std::string& moduleName, const std::string& functionName, void* overrideFunction)
+	void OverrideIATFunction(const std::string& moduleName, const std::string& functionName, void* overrideFunction)
 	{
 		auto importAddress = LockupMappedFunctionFromIAT(moduleName, functionName);
-		if (importAddress == nullptr)
-		{
-			OutputDebugStringA(fmt::format("[TestPlugin] Not found ImportAddress {0}::{1}\n", moduleName, functionName).c_str());
-			return false;
-		}
-
 		DWORD oldrights, newrights = PAGE_READWRITE;
 		VirtualProtect(importAddress, sizeof(LPVOID), newrights, &oldrights);
-		importAddress->u1.Function = reinterpret_cast<LONGLONG>(overrideFunction);
+		importAddress->u1.Function = reinterpret_cast<LONGLONG>(overrideFunction); // override function pointer
 		VirtualProtect(importAddress, sizeof(LPVOID), oldrights, &newrights);
 	}
 

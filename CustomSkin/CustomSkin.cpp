@@ -14,6 +14,14 @@
 #include <gdiplustypes.h>
 #pragma comment(lib, "gdiplus.lib")
 
+
+const auto EMSG_NOT_FOUND_DEFAULT_SKIN_RSP = "デフォルトのSkinが見つけられません\r\n{}";
+const auto EMSG_NOT_FOUND_RSP_PACKER = "RSPファイルの展開プログラムが見つけられません\r\n{}";
+const auto EMSG_FILED_UNPACK = "RSPファイルの展開に失敗しました\r\n{}";
+const auto EMSG_NOT_FOUND_SKIN_FILE = "Skin用画像が見つけられません\r\n{}";
+const auto EMSG_FAILED_LOAD_IMAGE = "画像ファイルの読み込みに失敗しました\r\n{}";
+
+
 void* Global_0;
 
 Gdiplus::GpStatus Hook_DrawTimeline_GdipGraphicsClear(Gdiplus::GpGraphics* graphics, Gdiplus::ARGB color)
@@ -28,18 +36,25 @@ Gdiplus::GpStatus Hook_DrawTimeline_GdipGraphicsClear(Gdiplus::GpGraphics* graph
 		if (!std::filesystem::exists(file))
 		{
 			static auto rsp = RecottePluginFoundation::ResolveApplicationDir() / "models" / "2D-Maki_shihuku.rsp";
+			if (std::filesystem::exists(rsp)) throw std::runtime_error(std::format(EMSG_NOT_FOUND_DEFAULT_SKIN_RSP, rsp.string()).c_str());
+
 			auto tmpDir = std::filesystem::temp_directory_path() / "RecottePlugin" / rsp.filename();
 			file = tmpDir / "action10_o.png";
 			if (!std::filesystem::exists(file))
 			{
 				auto packer = RecottePluginFoundation::ResolvePluginPath() / "Png2RspConverter.exe";
-				auto command = std::format("\"    \"{}\" --unpack \"{}\" \"{}\"    \"", packer.string(), rsp.string(), tmpDir.string());
+				if (std::filesystem::exists(rsp)) throw std::runtime_error(std::format(EMSG_NOT_FOUND_RSP_PACKER, packer.string()).c_str());
+
+				auto command = std::format("\"{}\" --unpack \"{}\" \"{}\"", packer.string(), rsp.string(), tmpDir.string());
 				OutputDebugStringA(std::format("{}\n", command).c_str());
-				auto result = std::system(command.c_str());
-				if(result != 0) OutputDebugStringA(std::format("Command failed {}\n", result).c_str());
+				auto result = std::system(std::format("\"{}\"", command).c_str()); // 全体を更に引用符で囲う必要がある
+				if(result != 0) throw std::runtime_error(std::format(EMSG_FILED_UNPACK, command).c_str());
 			}
 		}
-		Gdiplus::DllExports::GdipCreateBitmapFromFile(file.c_str(), &bitmap);
+		if (std::filesystem::exists(file)) throw std::runtime_error(std::format(EMSG_NOT_FOUND_SKIN_FILE, file.string()).c_str());
+
+		auto status = Gdiplus::DllExports::GdipCreateBitmapFromFile(file.c_str(), &bitmap);
+		if (status != Gdiplus::Status::Ok) throw std::runtime_error(std::format(EMSG_FAILED_LOAD_IMAGE, file.string()).c_str());
 	}
 	unsigned int srcW, srcH;
 	Gdiplus::DllExports::GdipGetImageWidth(bitmap, &srcW);
@@ -107,17 +122,14 @@ extern "C" __declspec(dllexport) void WINAPI OnPluginStart(HINSTANCE handle)
 
 			return true;
 		});
-		if (target != nullptr)
+		auto part3 = std::vector<unsigned char>
 		{
-			auto part3 = std::vector<unsigned char>
-			{
-				0x48, 0xB8, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // mov rax, 0FFFFFFFFFFFFFFFFh
-				0xFF, 0xD0, // call rax
-				0x90, // nops
-			};
-			*(void**)(part3.data() + 2) = &Hook_DrawTimeline_GdipGraphicsClear;
-			RecottePluginFoundation::MemoryCopyAvoidingProtection(target, part3.data(), part3.size());
-		}
+			0x48, 0xB8, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // mov rax, 0FFFFFFFFFFFFFFFFh
+			0xFF, 0xD0, // call rax
+			0x90, // nops
+		};
+		*(void**)(part3.data() + 2) = &Hook_DrawTimeline_GdipGraphicsClear;
+		RecottePluginFoundation::MemoryCopyAvoidingProtection(target, part3.data(), part3.size());
 	}
 
 	{
@@ -157,19 +169,16 @@ extern "C" __declspec(dllexport) void WINAPI OnPluginStart(HINSTANCE handle)
 			Global_0 = address + relativeAddressOffset; // 7FF6A569B008; Capture
 			return true;
 		});
-		if (target != nullptr)
+		// part0 はそのままに、part1, part2 を上書きする
+		target += part0.size();
+		auto part3 = std::vector<unsigned char>
 		{
-			// part0 はそのままに、part1, part2 を上書きする
-			target += part0.size();
-			auto part3 = std::vector<unsigned char>
-			{
-				0x48, 0xB8, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // mov rax, 0FFFFFFFFFFFFFFFFh
-				0xFF, 0xD0, // call rax
-				0x90, // nop
-			};
-			*(void**)(part3.data() + 2) = &Hook_DrawTimeline_DrawLayerFoundation;
-			RecottePluginFoundation::MemoryCopyAvoidingProtection(target, part3.data(), part3.size());
-		}
+			0x48, 0xB8, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // mov rax, 0FFFFFFFFFFFFFFFFh
+			0xFF, 0xD0, // call rax
+			0x90, // nop
+		};
+		*(void**)(part3.data() + 2) = &Hook_DrawTimeline_DrawLayerFoundation;
+		RecottePluginFoundation::MemoryCopyAvoidingProtection(target, part3.data(), part3.size());
 	}
 }
 
