@@ -1,15 +1,22 @@
 ﻿#define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
 #include <vector>
+#include <map>
 #include <filesystem>
 #include "../HookHelper/HookHelper.h" // アセンブリレベルの互換性が無いのでリンクはしない
+
+
+const auto EMSG_FAILED_PLUGIN_DLL = "プラグインDLLが読み込めません\r\n{}\r\n{}";
+const auto EMSG_FAILED_PLUGIN_STARR = "プラグインの開始ができません\r\n{}\r\n{}";
+const auto EMSG_FAILED_PLUGIN_FINISH = "プラグインの終了ができません\r\n{}\r\n{}";
+
 
 
 HINSTANCE hLibMine;
 HINSTANCE hLib;
 FARPROC p[51];
 
-std::vector<HINSTANCE> g_Plugins;
+auto g_Plugins = std::map<std::filesystem::path, HINSTANCE>();
 
 void OnAttach()
 {
@@ -17,23 +24,34 @@ void OnAttach()
 	try
 	{
 		static auto pluginsDirectroy = RecottePluginFoundation::ResolvePluginPath();
+
+		auto pluginFiles = std::vector<std::filesystem::path>();
 		for (auto pluginFile : std::filesystem::directory_iterator(pluginsDirectroy))
 		{
 			auto s = pluginFile.path().extension().string();
 			if (pluginFile.path().extension().string() != ".dll") continue;
 			if (pluginFile.path().filename().string() == "RecottePluginFoundation.dll") continue;
 			if (pluginFile.path().filename().string() == "d3d11.dll") continue;
+			if (pluginFile.is_directory()) continue;
+			pluginFiles.push_back(pluginFile.path());
+		}
 
-			auto plugin = LoadLibraryA(pluginFile.path().string().c_str());
-			if (plugin == nullptr) continue;
+		auto alertMessage = std::format("以下の{}つのPluginが読み込まれます\r\n", pluginFiles.size());
+		for (auto& pluginFile : pluginFiles)
+		{
+			alertMessage += std::format("\r\n{}", pluginFile.string());
+		}
+		MessageBoxA(nullptr, alertMessage.c_str(), "RecottePluginLoader", MB_OK);
 
-			g_Plugins.push_back(plugin);
+		for (auto& pluginFile : pluginFiles)
+		{
+			auto plugin = g_Plugins[pluginFile] = LoadLibraryA(pluginFile.string().c_str());
+			if (plugin == nullptr) throw std::runtime_error(std::format(EMSG_FAILED_PLUGIN_DLL, RecottePluginFoundation::GetLastErrorString(), pluginFile.string()));
 
-			auto callback = reinterpret_cast<void (WINAPI*)(HINSTANCE)>(GetProcAddress(plugin, "OnPluginStart"));
-			if (callback != nullptr)
-			{
-				callback(hLibMine);
-			}
+			auto callback = (void (WINAPI*)(HINSTANCE))GetProcAddress(plugin, "OnPluginStart");
+			if (callback == nullptr) throw std::runtime_error(std::format(EMSG_FAILED_PLUGIN_STARR, RecottePluginFoundation::GetLastErrorString(), pluginFile.string()));
+
+			callback(hLibMine);
 		}
 	}
 	catch (std::exception& e)
@@ -50,13 +68,12 @@ void OnDetach()
 	{
 		for (auto plugin : g_Plugins)
 		{
-			auto callback = reinterpret_cast<void (WINAPI*)(HINSTANCE)>(GetProcAddress(plugin, "OnPluginFinish"));
-			if (callback != nullptr)
-			{
-				callback(hLibMine);
-			}
+			g_Plugins.erase(plugin.first);
 
-			FreeLibrary(plugin);
+			auto callback = (void (WINAPI*)(HINSTANCE))GetProcAddress(plugin.second, "OnPluginFinish");
+			if (callback == nullptr) throw std::runtime_error(std::format(EMSG_FAILED_PLUGIN_FINISH, RecottePluginFoundation::GetLastErrorString(), plugin.first.string()));
+
+			FreeLibrary(plugin.second);
 		}
 	}
 	catch (std::exception& e)
