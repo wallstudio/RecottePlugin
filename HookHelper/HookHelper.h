@@ -94,7 +94,7 @@ namespace RecottePluginFoundation
 	inline std::filesystem::path ResolveApplicationDir()
 	{
 		auto exePathBuffer = std::vector<wchar_t>(_MAX_PATH);
-		GetModuleFileNameW(GetModuleHandleW(NULL), exePathBuffer.data(), exePathBuffer.size());
+		GetModuleFileNameW(GetModuleHandleW(NULL), exePathBuffer.data(), (DWORD)exePathBuffer.size());
 		auto path = std::filesystem::path(exePathBuffer.data()).parent_path();
 
 		if (!std::filesystem::exists(path)) throw std::runtime_error(std::format(EMSG_NOT_FOUND_APP_DIR, path.string()).c_str());

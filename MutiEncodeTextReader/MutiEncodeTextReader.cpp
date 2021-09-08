@@ -31,21 +31,20 @@ HANDLE _CreateFileW(LPCWSTR lpFileName, DWORD dwDesiredAccess, DWORD dwShareMode
         if (g_ml == nullptr) hr = CoCreateInstance(CLSID_CMultiLanguage, NULL, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&g_ml));
         
         // Read
-        DWORD farFileSize;
-        long fileSize = std::filesystem::file_size(path);
+        size_t fileSize = std::filesystem::file_size(path);
         auto srcBuff = std::vector<char>(fileSize);
         auto sr = std::ifstream(path);
         sr.read(srcBuff.data(), fileSize);
             
         // Detect
-        int buffLen = srcBuff.size(), infoLen = 4;
+        int buffLen = (int)srcBuff.size(), infoLen = 4;
         auto info = std::vector<DetectEncodingInfo>(infoLen);
         hr = g_ml->DetectInputCodepage(MLDETECTCP_NONE, 0, srcBuff.data(), &buffLen, info.data(), &infoLen);
             
         // Convert
         DWORD mode = 0;
         auto dstBuff = std::vector<char>(fileSize * 4);
-        UINT srcSize = srcBuff.size(), dstSize = dstBuff.size();
+        UINT srcSize = (UINT)srcBuff.size(), dstSize = (UINT)dstBuff.size();
         hr = g_ml->ConvertString(&mode, info[0].nCodePage, 932, (BYTE*)srcBuff.data(), &srcSize, (BYTE*)dstBuff.data(), &srcSize);
         dstBuff.resize(dstSize);
             

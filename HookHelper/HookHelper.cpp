@@ -1,7 +1,6 @@
 ﻿#include <map>
 #include <vector>
 #include <filesystem>
-#include <fmt/format.h>
 #include "HookHelper.h"
 
 
@@ -22,7 +21,7 @@ namespace RecottePluginFoundation
 		PIMAGE_NT_HEADERS pImgNTHeaders = Offset<IMAGE_NT_HEADERS>(pImgDosHeaders, pImgDosHeaders->e_lfanew);
 		PIMAGE_IMPORT_DESCRIPTOR pImgImportDesc = Offset<IMAGE_IMPORT_DESCRIPTOR>(pImgDosHeaders, pImgNTHeaders->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT].VirtualAddress);
 
-		if (pImgDosHeaders->e_magic != IMAGE_DOS_SIGNATURE) throw std::runtime_error(fmt::format(EMSG_NOT_DOS_DLL, moduleName, functionName).c_str());
+		if (pImgDosHeaders->e_magic != IMAGE_DOS_SIGNATURE) throw std::runtime_error(std::format(EMSG_NOT_DOS_DLL, moduleName, functionName).c_str());
 
 		for (IMAGE_IMPORT_DESCRIPTOR* iid = pImgImportDesc; iid->Name != NULL; iid++)
 		{
@@ -38,21 +37,21 @@ namespace RecottePluginFoundation
 				return RvaToVa<IMAGE_THUNK_DATA>(iid->FirstThunk) + funcIdx;
 			}
 		}
-		throw std::runtime_error(fmt::format(EMSG_NOT_FOUND_FUNC_IN_DLL, moduleName, functionName).c_str());;
+		throw std::runtime_error(std::format(EMSG_NOT_FOUND_FUNC_IN_DLL, moduleName, functionName).c_str());;
 	}
 
 	FARPROC Intenal::LookupFunctionFromWin32Api(const std::string& moduleName, const std::string& functionName)
 	{
 		static std::map<std::string, FARPROC> baseFunctions = std::map<std::string, FARPROC>();
 
-		auto id = fmt::format("{0}::{1}", moduleName, functionName);
+		auto id = std::format("{0}::{1}", moduleName, functionName);
 		if (!baseFunctions.contains(id))
 		{
 			auto module = GetModuleHandleA(moduleName.c_str());
-			if (module == nullptr) throw std::runtime_error(fmt::format(EMSG_NOT_FOUND_DLL, id).c_str());;
+			if (module == nullptr) throw std::runtime_error(std::format(EMSG_NOT_FOUND_DLL, id).c_str());;
 
 			auto function = GetProcAddress(module, functionName.c_str());
-			if (function == nullptr) throw std::runtime_error(fmt::format(EMSG_NOT_FOUND_IAT, id).c_str());;
+			if (function == nullptr) throw std::runtime_error(std::format(EMSG_NOT_FOUND_IAT, id).c_str());;
 			
 			baseFunctions[id] = function;
 		}
