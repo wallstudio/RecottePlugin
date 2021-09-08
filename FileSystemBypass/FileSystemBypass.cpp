@@ -8,6 +8,14 @@
 #include <string>
 #include "../HookHelper/HookHelper.h"
 
+
+decltype(&FindFirstFileW) g_Original_FindFirstFileW;
+decltype(&FindFirstFileExW) g_Original_FindFirstFileExW;
+decltype(&FindNextFileW) g_Original_FindNextFileW;
+decltype(&FindClose) g_Original_FindClose;
+decltype(&CreateFileW) g_Original_CreateFileW;
+
+
 struct FilesProvider
 {
     std::wstring fileName;
@@ -22,7 +30,6 @@ struct FilesProvider
     }
 };
 
-void* g_BaseCreateFileW;
 std::map<HANDLE, std::shared_ptr<FilesProvider>> g_FileFindHandles = std::map<HANDLE, std::shared_ptr<FilesProvider>>();
 
 std::filesystem::path ResolveRecotteShaderDirctory()
@@ -44,20 +51,16 @@ std::filesystem::path ResolveRecotteShaderDirctory()
 }
 
 
-BOOL _FindNextFileW(HANDLE hFindFile, LPWIN32_FIND_DATAW lpFindFileData);
 HANDLE _FindFirstFileW(LPCWSTR lpFileName, LPWIN32_FIND_DATAW lpFindFileData)
 {
-    auto base = RecottePluginFoundation::LookupFunctionFromWin32Api<decltype(&_FindFirstFileW)>("kernel32.dll", "FindFirstFileW");
-    auto result = base(lpFileName, lpFindFileData);
+    auto result = g_Original_FindFirstFileW(lpFileName, lpFindFileData);
 
     {
-        auto find = RecottePluginFoundation::LookupFunctionFromWin32Api<decltype(&_FindFirstFileW)>("kernel32.dll", "FindFirstFileW");
-        auto next = RecottePluginFoundation::LookupFunctionFromWin32Api<decltype(&_FindNextFileW)>("kernel32.dll", "FindNextFileW");
         WIN32_FIND_DATAW data;
         g_FileFindHandles[result] = std::shared_ptr<FilesProvider>(new FilesProvider(lpFileName));
-        for (auto handle = find(lpFileName, &data); handle != INVALID_HANDLE_VALUE && next(handle, &data);)
+        for (auto handle = g_Original_FindFirstFileW(lpFileName, &data); handle != INVALID_HANDLE_VALUE && g_Original_FindNextFileW(handle, &data);)
         {
-             g_FileFindHandles[result]->container.push_back(data);
+            g_FileFindHandles[result]->container.push_back(data);
         }
 
         // Plugin Effectを差し込む
@@ -69,7 +72,7 @@ HANDLE _FindFirstFileW(LPCWSTR lpFileName, LPWIN32_FIND_DATAW lpFindFileData)
                 static auto recotteShaderDir = ResolveRecotteShaderDirctory();
                 auto dir = recotteShaderDir / type;
                 dir = dir.lexically_relative(std::format(L"C:\\Program Files\\RecotteStudio\\effects\\{}", type));
-                for (auto handle = find(std::format(L"{}\\*", dir.wstring()).c_str(), &data); handle != INVALID_HANDLE_VALUE && next(handle, &data);)
+                for (auto handle = g_Original_FindFirstFileW(std::format(L"{}\\*", dir.wstring()).c_str(), &data); handle != INVALID_HANDLE_VALUE && g_Original_FindNextFileW(handle, &data);)
                 {
                     if (0 == wcscmp(data.cFileName, L"..")) continue;
                     auto relative = dir / data.cFileName;
@@ -86,8 +89,7 @@ HANDLE _FindFirstFileW(LPCWSTR lpFileName, LPWIN32_FIND_DATAW lpFindFileData)
 
 HANDLE _FindFirstFileExW(LPCWSTR lpFileName, FINDEX_INFO_LEVELS fInfoLevelId, LPVOID lpFindFileData, FINDEX_SEARCH_OPS fSearchOp, LPVOID lpSearchFilter, DWORD dwAdditionalFlags)
 {
-    auto base = RecottePluginFoundation::LookupFunctionFromWin32Api<decltype(&_FindFirstFileExW)>("kernel32.dll", "FindFirstFileExW");
-    auto result = base(lpFileName, fInfoLevelId, lpFindFileData, fSearchOp, lpSearchFilter, dwAdditionalFlags);
+    auto result = g_Original_FindFirstFileExW(lpFileName, fInfoLevelId, lpFindFileData, fSearchOp, lpSearchFilter, dwAdditionalFlags);
     OutputDebugStringW(std::format(L"[RecotteShaderLoader] _FindFirstFileExW {} {}\n", lpFileName, ((WIN32_FIND_DATA*)lpFindFileData)->cFileName).c_str());
     return result;
 }
@@ -110,9 +112,8 @@ BOOL _FindNextFileW(HANDLE hFindFile, LPWIN32_FIND_DATAW lpFindFileData)
 BOOL _FindClose(HANDLE hFindFile)
 {
     OutputDebugStringW(std::format(L"[RecotteShaderLoader] _FindClose {}\n", g_FileFindHandles[hFindFile]->fileName).c_str());
-    auto base = RecottePluginFoundation::LookupFunctionFromWin32Api<decltype(&_FindClose)>("kernel32.dll", "FindClose");
     g_FileFindHandles.erase(hFindFile);
-    return base(hFindFile);
+    return g_Original_FindClose(hFindFile);
 }
 
 HANDLE _CreateFileW(LPCWSTR lpFileName, DWORD dwDesiredAccess, DWORD dwShareMode, LPSECURITY_ATTRIBUTES lpSecurityAttributes, DWORD dwCreationDisposition, DWORD dwFlagsAndAttributes, HANDLE hTemplateFile)
@@ -126,19 +127,17 @@ HANDLE _CreateFileW(LPCWSTR lpFileName, DWORD dwDesiredAccess, DWORD dwShareMode
     }
 
     OutputDebugStringW(std::format(L"[RecotteShaderLoader] _CreateFileW {}\n", lpFileName).c_str());
-    return ((decltype(&_CreateFileW))g_BaseCreateFileW)(lpFileName, dwDesiredAccess, dwShareMode, lpSecurityAttributes, dwCreationDisposition, dwFlagsAndAttributes, hTemplateFile);
+    return g_Original_CreateFileW(lpFileName, dwDesiredAccess, dwShareMode, lpSecurityAttributes, dwCreationDisposition, dwFlagsAndAttributes, hTemplateFile);
 }
 
 extern "C" __declspec(dllexport) void WINAPI OnPluginStart(HINSTANCE handle)
 {
     OutputDebugStringW(L"[RecotteShaderLoader] " __FUNCTION__ "\n");
-    RecottePluginFoundation::OverrideIATFunction("kernel32.dll", "FindFirstFileW", _FindFirstFileW);
-    RecottePluginFoundation::OverrideIATFunction("kernel32.dll", "FindFirstFileExW", _FindFirstFileExW);
-    RecottePluginFoundation::OverrideIATFunction("kernel32.dll", "FindNextFileW", _FindNextFileW);
-    RecottePluginFoundation::OverrideIATFunction("kernel32.dll", "FindClose", _FindClose);
-
-    g_BaseCreateFileW = (void*)RecottePluginFoundation::LockupMappedFunctionFromIAT("kernel32.dll", "CreateFileW")->u1.AddressOfData;
-    RecottePluginFoundation::OverrideIATFunction("kernel32.dll", "CreateFileW", _CreateFileW);
+    g_Original_FindFirstFileW = RecottePluginFoundation::OverrideIATFunction("kernel32.dll", "FindFirstFileW", _FindFirstFileW);
+    g_Original_FindFirstFileExW = RecottePluginFoundation::OverrideIATFunction("kernel32.dll", "FindFirstFileExW", _FindFirstFileExW);
+    g_Original_FindNextFileW = RecottePluginFoundation::OverrideIATFunction("kernel32.dll", "FindNextFileW", _FindNextFileW);
+    g_Original_FindClose = RecottePluginFoundation::OverrideIATFunction("kernel32.dll", "FindClose", _FindClose);
+    g_Original_CreateFileW = RecottePluginFoundation::OverrideIATFunction("kernel32.dll", "CreateFileW", _CreateFileW);
 }
 
 extern "C" __declspec(dllexport) void WINAPI OnPluginFinish(HINSTANCE haneld)

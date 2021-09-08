@@ -15,8 +15,11 @@
 
 #pragma comment(lib,"Ole32.lib")
 
-void* g_BaseCreateFileW;
+decltype(&CreateFileW) g_Original_CreateFileW;
+
+
 Microsoft::WRL::ComPtr<IMultiLanguage2> g_ml = nullptr;
+
 
 HANDLE _CreateFileW(LPCWSTR lpFileName, DWORD dwDesiredAccess, DWORD dwShareMode, LPSECURITY_ATTRIBUTES lpSecurityAttributes, DWORD dwCreationDisposition, DWORD dwFlagsAndAttributes, HANDLE hTemplateFile)
 {
@@ -57,7 +60,7 @@ HANDLE _CreateFileW(LPCWSTR lpFileName, DWORD dwDesiredAccess, DWORD dwShareMode
         lpFileName = alt.c_str();
     }
 
-    auto result = ((decltype(&CreateFileW))g_BaseCreateFileW)(lpFileName, dwDesiredAccess, dwShareMode, lpSecurityAttributes, dwCreationDisposition, dwFlagsAndAttributes, hTemplateFile);
+    auto result = g_Original_CreateFileW(lpFileName, dwDesiredAccess, dwShareMode, lpSecurityAttributes, dwCreationDisposition, dwFlagsAndAttributes, hTemplateFile);
     OutputDebugStringW(std::format(L"[MutiEncodeTextReader] _ReadFile {}\n", path.c_str()).c_str());
     return result;
 }
@@ -65,9 +68,7 @@ HANDLE _CreateFileW(LPCWSTR lpFileName, DWORD dwDesiredAccess, DWORD dwShareMode
 extern "C" __declspec(dllexport) void WINAPI OnPluginStart(HINSTANCE handle)
 {
     OutputDebugStringW(L"[RecotteShaderLoader] " __FUNCTION__ "\n");
-
-    g_BaseCreateFileW = (void*)RecottePluginFoundation::LockupMappedFunctionFromIAT("kernel32.dll", "CreateFileW")->u1.AddressOfData;
-    RecottePluginFoundation::OverrideIATFunction("kernel32.dll", "CreateFileW", _CreateFileW);
+    g_Original_CreateFileW = RecottePluginFoundation::OverrideIATFunction("kernel32.dll", "CreateFileW", _CreateFileW);
 }
 
 extern "C" __declspec(dllexport) void WINAPI OnPluginFinish(HINSTANCE haneld)

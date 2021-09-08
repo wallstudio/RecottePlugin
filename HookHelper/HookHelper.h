@@ -23,17 +23,36 @@ namespace RecottePluginFoundation
 		return reinterpret_cast<T*>(va);
 	}
 
+	inline std::string GetLastErrorString()
+	{
+		auto code = GetLastError();
+		LPSTR buffer = nullptr;
+		auto flag = FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS;
+		FormatMessageA(flag, nullptr, code, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPSTR)&buffer, 0, nullptr);
+		auto str = std::string(buffer);
+		LocalFree(buffer);
+		return str;
+	}
+
 
 	// IAT utilities
 
-	IMAGE_THUNK_DATA* LockupMappedFunctionFromIAT(const std::string& moduleName, const std::string& functionName);
-	FARPROC LookupFunctionFromWin32Api(const std::string& moduleName, const std::string& functionName);
-	extern void OverrideIATFunction(const std::string& moduleName, const std::string& functionName, void* overrideFunction);
+	namespace Intenal
+	{
+		FARPROC LookupFunctionFromWin32Api(const std::string& moduleName, const std::string& functionName);
+		extern void* OverrideIATFunction(const std::string& moduleName, const std::string& functionName, void* newFunction);
+	}
 
 	template<typename TDelegate>
 	extern TDelegate LookupFunctionFromWin32Api(const std::string& moduleName, const std::string& functionName)
 	{
-		return reinterpret_cast<TDelegate>(LookupFunctionFromWin32Api(moduleName, functionName));
+		return reinterpret_cast<TDelegate>(Intenal::LookupFunctionFromWin32Api(moduleName, functionName));
+	}
+
+	template<typename TDelegate>
+	extern TDelegate OverrideIATFunction(const std::string& moduleName, const std::string& functionName, TDelegate newFunction)
+	{
+		return (TDelegate)Intenal::OverrideIATFunction(moduleName, functionName, newFunction);
 	}
 
 

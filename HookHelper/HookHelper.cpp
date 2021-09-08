@@ -41,7 +41,7 @@ namespace RecottePluginFoundation
 		throw std::runtime_error(fmt::format(EMSG_NOT_FOUND_FUNC_IN_DLL, moduleName, functionName).c_str());;
 	}
 
-	FARPROC LookupFunctionFromWin32Api(const std::string& moduleName, const std::string& functionName)
+	FARPROC Intenal::LookupFunctionFromWin32Api(const std::string& moduleName, const std::string& functionName)
 	{
 		static std::map<std::string, FARPROC> baseFunctions = std::map<std::string, FARPROC>();
 
@@ -59,13 +59,15 @@ namespace RecottePluginFoundation
 		return baseFunctions[id];
 	}
 
-	void OverrideIATFunction(const std::string& moduleName, const std::string& functionName, void* overrideFunction)
+	void* Intenal::OverrideIATFunction(const std::string& moduleName, const std::string& functionName, void* newFunction)
 	{
 		auto importAddress = LockupMappedFunctionFromIAT(moduleName, functionName);
 		DWORD oldrights, newrights = PAGE_READWRITE;
 		VirtualProtect(importAddress, sizeof(LPVOID), newrights, &oldrights);
-		importAddress->u1.Function = reinterpret_cast<LONGLONG>(overrideFunction); // override function pointer
+		auto old = (void*)importAddress->u1.Function;
+		importAddress->u1.Function = (LONGLONG)newFunction; // override function pointer
 		VirtualProtect(importAddress, sizeof(LPVOID), oldrights, &newrights);
+		return old;
 	}
 
 }
