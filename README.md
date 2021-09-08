@@ -1,5 +1,7 @@
 # RecottePlugin
 
+[![MSBuild](https://github.com/wallstudio/RecottePlugin/actions/workflows/msbuild.yml/badge.svg)](https://github.com/wallstudio/RecottePlugin/actions/workflows/msbuild.yml)
+
 RecotteStudioのプラグインです。
 
 ![](img/ss1.gif)
@@ -29,13 +31,9 @@ C:\Users\<ユーザー名>
         └ …
 ```
 
-#### アップデート（`v0.1.1` 未満から）
+#### アップデート
 
-`C:\Program Files\RecotteStudio\Plugins\`, `C:\Program Files\RecotteStudio\d3d11.dll` を削除して、[インストール](#インストール方法)
- 
-#### アップデート（`v0.1.1` 以上から）
-
-`C:\Users\<ユーザー名>\RecottePlugin\` を削除して、[インストール](#インストール方法)
+`RecottePlugin\install.bat` に古いバージョンのアンインストールも含まれているので、`RecottePlugin`フォルダを丸ごと取り換えて `install.bat` を実行するだけです。
 
 ## 機能
 
