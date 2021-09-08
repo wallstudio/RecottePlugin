@@ -6,9 +6,9 @@
 #include "../HookHelper/HookHelper.h" // アセンブリレベルの互換性が無いのでリンクはしない
 
 
-const auto EMSG_FAILED_PLUGIN_DLL = "プラグインDLLが読み込めません\r\n{}\r\n{}";
-const auto EMSG_FAILED_PLUGIN_STARR = "プラグインの開始ができません\r\n{}\r\n{}";
-const auto EMSG_FAILED_PLUGIN_FINISH = "プラグインの終了ができません\r\n{}\r\n{}";
+const auto EMSG_FAILED_PLUGIN_DLL = L"プラグインDLLが読み込めません\r\n{}\r\n{}";
+const auto EMSG_FAILED_PLUGIN_STARR = L"プラグインの開始ができません\r\n{}\r\n{}";
+const auto EMSG_FAILED_PLUGIN_FINISH = L"プラグインの終了ができません\r\n{}\r\n{}";
 
 
 
@@ -36,23 +36,28 @@ void OnAttach()
 			pluginFiles.push_back(pluginFile.path());
 		}
 
-		auto alertMessage = std::format("以下の{}つのPluginが読み込まれます\r\n", pluginFiles.size());
+		auto alertMessage = std::format(L"以下の{}つのPluginが読み込まれます\r\n", pluginFiles.size());
 		for (auto& pluginFile : pluginFiles)
 		{
-			alertMessage += std::format("\r\n{}", pluginFile.string());
+			alertMessage += std::format(L"\r\n{}", pluginFile.wstring());
 		}
-		MessageBoxA(nullptr, alertMessage.c_str(), "RecottePluginLoader", MB_OK);
+		MessageBoxW(nullptr, alertMessage.c_str(), L"RecottePluginLoader", MB_OK);
 
 		for (auto& pluginFile : pluginFiles)
 		{
 			auto plugin = g_Plugins[pluginFile] = LoadLibraryA(pluginFile.string().c_str());
-			if (plugin == nullptr) throw std::runtime_error(std::format(EMSG_FAILED_PLUGIN_DLL, RecottePluginFoundation::GetLastErrorString(), pluginFile.string()));
+			if (plugin == nullptr) throw std::format(EMSG_FAILED_PLUGIN_DLL, RecottePluginFoundation::GetLastErrorString(), pluginFile.wstring());
 
 			auto callback = (void (WINAPI*)(HINSTANCE))GetProcAddress(plugin, "OnPluginStart");
-			if (callback == nullptr) throw std::runtime_error(std::format(EMSG_FAILED_PLUGIN_STARR, RecottePluginFoundation::GetLastErrorString(), pluginFile.string()));
+			if (callback == nullptr) throw std::format(EMSG_FAILED_PLUGIN_STARR, RecottePluginFoundation::GetLastErrorString(), pluginFile.wstring());
 
 			callback(hLibMine);
 		}
+	}
+	catch (std::wstring& e)
+	{
+		MessageBoxW(nullptr, e.c_str(), L"RecottePlugin", MB_ICONERROR);
+		throw;
 	}
 	catch (std::exception& e)
 	{
@@ -71,10 +76,15 @@ void OnDetach()
 			g_Plugins.erase(plugin.first);
 
 			auto callback = (void (WINAPI*)(HINSTANCE))GetProcAddress(plugin.second, "OnPluginFinish");
-			if (callback == nullptr) throw std::runtime_error(std::format(EMSG_FAILED_PLUGIN_FINISH, RecottePluginFoundation::GetLastErrorString(), plugin.first.string()));
+			if (callback == nullptr) throw std::format(EMSG_FAILED_PLUGIN_FINISH, RecottePluginFoundation::GetLastErrorString(), plugin.first.wstring());
 
 			FreeLibrary(plugin.second);
 		}
+	}
+	catch (std::wstring& e)
+	{
+		MessageBoxW(nullptr, e.c_str(), L"RecottePlugin", MB_ICONERROR);
+		throw;
 	}
 	catch (std::exception& e)
 	{

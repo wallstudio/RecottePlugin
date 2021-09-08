@@ -9,11 +9,11 @@
 
 namespace RecottePluginFoundation
 {
-	const auto EMSG_NOT_FOUND_ADDRESS = "上書き対象の機能が見つけられません\r\nRecotteStudio本体のアップデートにより互換性がなくなった可能性があります";
-	const auto EMSG_NOT_FOUND_APP_DIR = "RecotteStudio本体がインストールされたフォルダが見つかりませんでした {}";
-	const auto EMSG_NOT_FOUND_PLUGIN_DIR_ENV = "環境変数 \"RECOTTE_PLUGIN_DIR\" で指定されたPluginフォルダの場所が見つけられません\r\n{}";
-	const auto EMSG_NOT_FOUND_PLUGIN_DIR_HOME = "ユーザーフォルダ内にPluginフォルダが見つけられません\r\n {}";
-	const auto EMSG_NOT_FOUND_PLUGIN_DIR_UNKNOWN = "ユーザーフォルダが見つけられません";
+	const auto EMSG_NOT_FOUND_ADDRESS = L"上書き対象の機能が見つけられません\r\nRecotteStudio本体のアップデートにより互換性がなくなった可能性があります";
+	const auto EMSG_NOT_FOUND_APP_DIR = L"RecotteStudio本体がインストールされたフォルダが見つかりませんでした {}";
+	const auto EMSG_NOT_FOUND_PLUGIN_DIR_ENV = L"環境変数 \"RECOTTE_PLUGIN_DIR\" で指定されたPluginフォルダの場所が見つけられません\r\n{}";
+	const auto EMSG_NOT_FOUND_PLUGIN_DIR_HOME = L"ユーザーフォルダ内にPluginフォルダが見つけられません\r\n {}";
+	const auto EMSG_NOT_FOUND_PLUGIN_DIR_UNKNOWN = L"ユーザーフォルダが見つけられません";
 
 
 	template<typename T = void>
@@ -23,13 +23,18 @@ namespace RecottePluginFoundation
 		return reinterpret_cast<T*>(va);
 	}
 
-	inline std::string GetLastErrorString()
+	inline std::wstring AsciiToWide(std::string ascii)
+	{
+		return std::wstring(ascii.begin(), ascii.end());
+	}
+
+	inline std::wstring GetLastErrorString()
 	{
 		auto code = GetLastError();
-		LPSTR buffer = nullptr;
+		LPTSTR buffer = nullptr;
 		auto flag = FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS;
-		FormatMessageA(flag, nullptr, code, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPSTR)&buffer, 0, nullptr);
-		auto str = std::string(buffer);
+		FormatMessageW(flag, nullptr, code, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPTSTR)&buffer, 0, nullptr);
+		auto str = std::wstring(buffer);
 		LocalFree(buffer);
 		return str;
 	}
@@ -77,7 +82,7 @@ namespace RecottePluginFoundation
 			}
 			address += info.RegionSize;
 		}
-		throw std::runtime_error(std::format(EMSG_NOT_FOUND_ADDRESS).c_str());
+		throw std::format(EMSG_NOT_FOUND_ADDRESS);
 	}
 
 	inline void MemoryCopyAvoidingProtection(void* dst, void* src, size_t size)
@@ -97,7 +102,7 @@ namespace RecottePluginFoundation
 		GetModuleFileNameW(GetModuleHandleW(NULL), exePathBuffer.data(), (DWORD)exePathBuffer.size());
 		auto path = std::filesystem::path(exePathBuffer.data()).parent_path();
 
-		if (!std::filesystem::exists(path)) throw std::runtime_error(std::format(EMSG_NOT_FOUND_APP_DIR, path.string()).c_str());
+		if (!std::filesystem::exists(path)) throw std::format(EMSG_NOT_FOUND_APP_DIR, path.wstring());
 		return path;
 	}
 
@@ -116,7 +121,7 @@ namespace RecottePluginFoundation
 			_wgetenv_s(&buffSize, buffer.data(), buffer.size(), L"RECOTTE_PLUGIN_DIR");
 			auto path = std::filesystem::path(buffer.data());
 
-			if (!std::filesystem::exists(path)) throw std::runtime_error(std::format(EMSG_NOT_FOUND_PLUGIN_DIR_ENV, path.string()).c_str());
+			if (!std::filesystem::exists(path)) throw std::format(EMSG_NOT_FOUND_PLUGIN_DIR_ENV, path.wstring());
 			return path;
 		}
 
@@ -129,10 +134,10 @@ namespace RecottePluginFoundation
 			auto userDir = std::format(L"C:{}", buffer.data());
 			auto path = std::filesystem::path(userDir) / "RecottePlugin";
 
-			if (!std::filesystem::exists(path)) throw std::runtime_error(std::format(EMSG_NOT_FOUND_PLUGIN_DIR_HOME, path.string()).c_str());
+			if (!std::filesystem::exists(path)) throw std::format(EMSG_NOT_FOUND_PLUGIN_DIR_HOME, path.wstring());
 			return path;
 		}
 
-		throw std::runtime_error(std::format(EMSG_NOT_FOUND_PLUGIN_DIR_UNKNOWN).c_str());
+		throw std::format(EMSG_NOT_FOUND_PLUGIN_DIR_UNKNOWN);
 	}
 }

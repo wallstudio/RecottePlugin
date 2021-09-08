@@ -6,10 +6,10 @@
 
 namespace RecottePluginFoundation
 {
-	const auto EMSG_NOT_DOS_DLL = "システムライブラリがWindows用ライブラリとして認識できませんでした\r\n{0}::{1}";
-	const auto EMSG_NOT_FOUND_FUNC_IN_DLL = "上書き対象のシステムライブラリ内機能を見つけられませんでした\r\n{0}::{1}";
-	const auto EMSG_NOT_FOUND_DLL = "システムライブラリを見つけられませんでした\r\n{}";
-	const auto EMSG_NOT_FOUND_IAT = "システムライブラリ内機能を見つけられませんでした\r\n{}";
+	const auto EMSG_NOT_DOS_DLL = L"システムライブラリがWindows用ライブラリとして認識できませんでした\r\n{0}::{1}";
+	const auto EMSG_NOT_FOUND_FUNC_IN_DLL = L"上書き対象のシステムライブラリ内機能を見つけられませんでした\r\n{0}::{1}";
+	const auto EMSG_NOT_FOUND_DLL = L"システムライブラリを見つけられませんでした\r\n{}";
+	const auto EMSG_NOT_FOUND_IAT = L"システムライブラリ内機能を見つけられませんでした\r\n{}";
 
 
 	template<typename T>
@@ -21,7 +21,7 @@ namespace RecottePluginFoundation
 		PIMAGE_NT_HEADERS pImgNTHeaders = Offset<IMAGE_NT_HEADERS>(pImgDosHeaders, pImgDosHeaders->e_lfanew);
 		PIMAGE_IMPORT_DESCRIPTOR pImgImportDesc = Offset<IMAGE_IMPORT_DESCRIPTOR>(pImgDosHeaders, pImgNTHeaders->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT].VirtualAddress);
 
-		if (pImgDosHeaders->e_magic != IMAGE_DOS_SIGNATURE) throw std::runtime_error(std::format(EMSG_NOT_DOS_DLL, moduleName, functionName).c_str());
+		if (pImgDosHeaders->e_magic != IMAGE_DOS_SIGNATURE) throw std::format(EMSG_NOT_DOS_DLL, RecottePluginFoundation::AsciiToWide(moduleName), RecottePluginFoundation::AsciiToWide(functionName));
 
 		for (IMAGE_IMPORT_DESCRIPTOR* iid = pImgImportDesc; iid->Name != NULL; iid++)
 		{
@@ -37,7 +37,7 @@ namespace RecottePluginFoundation
 				return RvaToVa<IMAGE_THUNK_DATA>(iid->FirstThunk) + funcIdx;
 			}
 		}
-		throw std::runtime_error(std::format(EMSG_NOT_FOUND_FUNC_IN_DLL, moduleName, functionName).c_str());;
+		throw std::format(EMSG_NOT_FOUND_FUNC_IN_DLL, RecottePluginFoundation::AsciiToWide(moduleName), RecottePluginFoundation::AsciiToWide(functionName));
 	}
 
 	FARPROC Intenal::LookupFunctionFromWin32Api(const std::string& moduleName, const std::string& functionName)
@@ -48,10 +48,10 @@ namespace RecottePluginFoundation
 		if (!baseFunctions.contains(id))
 		{
 			auto module = GetModuleHandleA(moduleName.c_str());
-			if (module == nullptr) throw std::runtime_error(std::format(EMSG_NOT_FOUND_DLL, id).c_str());;
+			if (module == nullptr) throw std::format(EMSG_NOT_FOUND_DLL, RecottePluginFoundation::AsciiToWide(id));
 
 			auto function = GetProcAddress(module, functionName.c_str());
-			if (function == nullptr) throw std::runtime_error(std::format(EMSG_NOT_FOUND_IAT, id).c_str());;
+			if (function == nullptr) throw std::format(EMSG_NOT_FOUND_IAT, RecottePluginFoundation::AsciiToWide(id));
 			
 			baseFunctions[id] = function;
 		}
