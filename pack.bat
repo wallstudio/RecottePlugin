@@ -1,7 +1,7 @@
 @echo off
 
 set ZIP_FILENAME="recotte_plugins_foundation.zip"
-set ZIP_WOKING_DIR="RecottePlugin"
+set ZIP_WOKING_DIR=".pack\RecottePlugin"
 
 
 @REM Clan
