@@ -31,30 +31,38 @@ Gdiplus::GpStatus Hook_DrawTimeline_GdipGraphicsClear(Gdiplus::GpGraphics* graph
 	static Gdiplus::GpBitmap* bitmap = nullptr;
 	if (bitmap == nullptr)
 	{
-		static auto pluginDir = RecottePluginFoundation::ResolvePluginPath();
-		auto file = pluginDir / "skin.png";
-		if (!std::filesystem::exists(file))
+		try
 		{
-			static auto rsp = RecottePluginFoundation::ResolveApplicationDir() / "models" / "2D-Maki_shihuku.rsp";
-			if (std::filesystem::exists(rsp)) throw std::runtime_error(std::format(EMSG_NOT_FOUND_DEFAULT_SKIN_RSP, rsp.string()).c_str());
-
-			auto tmpDir = std::filesystem::temp_directory_path() / "RecottePlugin" / rsp.filename();
-			file = tmpDir / "action10_o.png";
+			static auto pluginDir = RecottePluginFoundation::ResolvePluginPath();
+			auto file = pluginDir / "skin.png";
 			if (!std::filesystem::exists(file))
 			{
-				auto packer = RecottePluginFoundation::ResolvePluginPath() / "Png2RspConverter.exe";
-				if (std::filesystem::exists(rsp)) throw std::runtime_error(std::format(EMSG_NOT_FOUND_RSP_PACKER, packer.string()).c_str());
+				static auto rsp = RecottePluginFoundation::ResolveApplicationDir() / "models" / "2D-Maki_shihuku.rsp";
+				if (!std::filesystem::exists(rsp)) throw std::runtime_error(std::format(EMSG_NOT_FOUND_DEFAULT_SKIN_RSP, rsp.string()).c_str());
 
-				auto command = std::format("\"{}\" --unpack \"{}\" \"{}\"", packer.string(), rsp.string(), tmpDir.string());
-				OutputDebugStringA(std::format("{}\n", command).c_str());
-				auto result = std::system(std::format("\"{}\"", command).c_str()); // 全体を更に引用符で囲う必要がある
-				if(result != 0) throw std::runtime_error(std::format(EMSG_FILED_UNPACK, command).c_str());
+				auto tmpDir = std::filesystem::temp_directory_path() / "RecottePlugin" / rsp.filename();
+				file = tmpDir / "action10_o.png";
+				if (!std::filesystem::exists(file))
+				{
+					auto packer = RecottePluginFoundation::ResolvePluginPath() / "Png2RspConverter.exe";
+					if (!std::filesystem::exists(rsp)) throw std::runtime_error(std::format(EMSG_NOT_FOUND_RSP_PACKER, packer.string()).c_str());
+
+					auto command = std::format("\"{}\" --unpack \"{}\" \"{}\"", packer.string(), rsp.string(), tmpDir.string());
+					OutputDebugStringA(std::format("{}\n", command).c_str());
+					auto result = std::system(std::format("\"{}\"", command).c_str()); // 全体を更に引用符で囲う必要がある
+					if (result != 0) throw std::runtime_error(std::format(EMSG_FILED_UNPACK, command).c_str());
+				}
 			}
-		}
-		if (std::filesystem::exists(file)) throw std::runtime_error(std::format(EMSG_NOT_FOUND_SKIN_FILE, file.string()).c_str());
+			if (!std::filesystem::exists(file)) throw std::runtime_error(std::format(EMSG_NOT_FOUND_SKIN_FILE, file.string()).c_str());
 
-		auto status = Gdiplus::DllExports::GdipCreateBitmapFromFile(file.c_str(), &bitmap);
-		if (status != Gdiplus::Status::Ok) throw std::runtime_error(std::format(EMSG_FAILED_LOAD_IMAGE, file.string()).c_str());
+			auto status = Gdiplus::DllExports::GdipCreateBitmapFromFile(file.c_str(), &bitmap);
+			if (status != Gdiplus::Status::Ok) throw std::runtime_error(std::format(EMSG_FAILED_LOAD_IMAGE, file.string()).c_str());
+		}
+		catch (std::exception& e)
+		{
+			MessageBoxA(nullptr, e.what(), "RecottePlugin", MB_ICONERROR);
+			exit(-1145141919); // 強制クラッシュ
+		}
 	}
 	unsigned int srcW, srcH;
 	Gdiplus::DllExports::GdipGetImageWidth(bitmap, &srcW);
