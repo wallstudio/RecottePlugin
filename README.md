@@ -24,10 +24,13 @@ RecotteStudioのプラグインです。
 1. レコスタを起動すると、`RecottePlugin`フォルダ内のプラグインが読み込まれます。
 
 ```
-C:\Users\<ユーザー名>
-    └ RecottePlugin
+Cドライブ
+  └ Users
+    └ <ユーザー名>
+      └ RecottePlugin
         ├ README.md
         ├ install.bat
+        ├ RecottePluginFoundation.dll
         └ …
 ```
 
