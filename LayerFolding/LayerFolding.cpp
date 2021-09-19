@@ -82,21 +82,20 @@ HWND _CreateWindowExW(DWORD dwExStyle, LPCWSTR lpClassName, LPCWSTR lpWindowName
 }
 
 
-struct WindowObj
-{
-	std::byte __Gap0[0x780];
-	HWND Hwnd;
-};
-struct UnknownObj
-{
-	std::byte __Gap0[0x60];
-	float(*GetConstantMinHeight)();
-};
 struct LayerObj
 {
-	UnknownObj* UnknownObj;
+	struct
+	{
+		std::byte __Gap0[0x60];
+		float(*GetConstantMinHeight)();
+	}* UnknownObj;
 	std::byte __Gap0[0xE8 - sizeof(UnknownObj)];
-	WindowObj* WindowObj;
+	struct
+	{
+		std::byte __Gap0[0x780];
+		HWND Hwnd;
+	}* WindowObj;
+
 	std::byte __Gap1[0x160 - sizeof(UnknownObj) - sizeof(__Gap0) - sizeof(WindowObj)];
 	float LayerHeight;
 };
