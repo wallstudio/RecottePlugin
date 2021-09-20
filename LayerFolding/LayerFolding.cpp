@@ -120,17 +120,17 @@ void Hook_CalcLayerHeight(LayerObj* layerObj)
 
 void Hook_CalcLayerHeight2(float xmm0, LayerObj* layerObj)
 {
-	if (layerObj->LayerHeight < xmm0)
-	{
-		layerObj->LayerHeight = layerObj->UnknownObj->GetConstantMinHeight();
-	}
-	
 	if (layerObj == nullptr
 		|| layerObj->WindowObj == nullptr 
 		|| layerObj->WindowObj->Hwnd == nullptr
 		|| !TimelineWidnowLabelsItems.contains(layerObj->WindowObj->Hwnd))
 	{
 		return; // RSPの読み込みタイミングによって、CreateWindowより先に来ることがあるっぽい
+	}
+
+	if (layerObj->LayerHeight < xmm0)
+	{
+		layerObj->LayerHeight = layerObj->UnknownObj->GetConstantMinHeight();
 	}
 
 	auto additionalSetting = TimelineWidnowLabelsItems[layerObj->WindowObj->Hwnd];
@@ -141,14 +141,16 @@ void Hook_CalcLayerHeight2(float xmm0, LayerObj* layerObj)
 	}
 }
 
+void Hook_CalcLayerHeight3(float xmm0, LayerObj* layerObj) { Hook_CalcLayerHeight2(xmm0, layerObj); }
+
 extern "C" __declspec(dllexport) void WINAPI OnPluginStart(HINSTANCE handle)
 {
 	OutputDebugStringW(L"[LayerFolding] OnPluginStart\n");
 
 	g_Original_CreateWindowExW = RecottePluginFoundation::OverrideIATFunction("user32.dll", "CreateWindowExW", _CreateWindowExW);
 
+	// 話者レイヤー
 	{
-		// 話者レイヤー
 		auto target = RecottePluginFoundation::SearchAddress([](std::byte* address)
 		{
 			static auto part0 = std::vector<unsigned char>
@@ -190,8 +192,8 @@ extern "C" __declspec(dllexport) void WINAPI OnPluginStart(HINSTANCE handle)
 		RecottePluginFoundation::MemoryCopyAvoidingProtection(target, part3.data(), part3.size());
 	}
 
+	// 注釈レイヤー
 	{
-		// 注釈レイヤー
 		auto target = RecottePluginFoundation::SearchAddress([](std::byte* address)
 		{
 			static auto part0 = std::vector<unsigned char>
@@ -218,13 +220,52 @@ extern "C" __declspec(dllexport) void WINAPI OnPluginStart(HINSTANCE handle)
 		});
 		auto part3 = std::vector<unsigned char>
 		{
-			0x48, 0x8B, 0b11'010'011, // mov rdx, rbx
+			// dmmx0 がセット済み（第一引数）
+			0x48, 0x8B, 0b11'010'011, // mov rdx, rbx （第二引数）
 			0x48, 0xB8, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // mov rax, 0FFFFFFFFFFFFFFFFh
 			0xFF, 0xD0, // call rax
 			0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, // nop
 			0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, // nop
 		};
 		*(void**)(part3.data() + 3 + 2) = &Hook_CalcLayerHeight2;
+		RecottePluginFoundation::MemoryCopyAvoidingProtection(target, part3.data(), part3.size());
+	}
+
+	// 映像・音声レイヤー
+	{
+		auto target = RecottePluginFoundation::SearchAddress([](std::byte* address)
+			{
+				static auto part0 = std::vector<unsigned char> // 14
+				{
+					// 00007FF633B75F3A
+					0xF3, 0x41, 0x0F, 0x11, 0x86, 0x60, 0x01, 0x00, 0x00, // movss dword ptr[r14 + 160h], xmm0
+					0x48, 0x8D, 0x4D, 0xC0, // lea rcx,[rbp + 60h + var_A0]
+					0xE8, // call ...
+				};
+				if (0 != memcmp(address, part0.data(), part0.size())) return false;
+				address += part0.size();
+
+				address += 4; // (call) sub_7FF633A273B0
+				
+				static auto part1 = std::vector<unsigned char> // 19
+				{
+					0x90, // nop
+					0x48, 0x8D, 0x4C, 0x24, 0x70, // lea rcx,[rsp + 160h + var_F0]
+				};
+				if (0 != memcmp(address, part1.data(), part1.size())) return false;
+				address += part1.size();
+
+				return true;
+			});
+		auto part3 = std::vector<unsigned char>
+		{
+			// dmmx0 がセット済み（第一引数）
+			0b0100'1'0'0'1 , 0x8B, 0b11'010'110, // mov rdx, r14（第二引数）REX(prefix, is64:t, shiftDst:f, shiftFactor:f, shiftSrc:t), mov, ModRM(mod:r, reg:rdx, rm:rsi/r14)
+			0x48, 0xB8, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // mov rax, 0FFFFFFFFFFFFFFFFh
+			0xFF, 0xD0, // call rax
+			0x90, 0x90, 0x90, // nop
+		};
+		*(void**)(part3.data() + 3 + 2) = &Hook_CalcLayerHeight3;
 		RecottePluginFoundation::MemoryCopyAvoidingProtection(target, part3.data(), part3.size());
 	}
 }
