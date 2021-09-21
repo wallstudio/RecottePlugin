@@ -1,4 +1,4 @@
-﻿#define WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
 #include <vector>
 #include <string>
@@ -143,6 +143,38 @@ void Hook_CalcLayerHeight2(float xmm0, LayerObj* layerObj)
 
 void Hook_CalcLayerHeight3(float xmm0, LayerObj* layerObj) { Hook_CalcLayerHeight2(xmm0, layerObj); }
 
+LRESULT Hook_Dispatch(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
+{
+	LONG_PTR windowLongPtrW = Msg == 1
+		? *(LONG_PTR*)lParam
+		: GetWindowLongPtrW(hWnd, -21);
+
+	wchar_t text[256];
+	GetWindowTextW(hWnd, text, _countof(text));
+	if (std::wstring(text) == L"uh_Timeline_Main")
+	{
+		OutputDebugStringW(L"uh_Timeline_Main\n");
+
+		if (Msg == WM_LBUTTONDOWN)
+		{
+			OutputDebugStringW(L"LPU\n");
+		}
+	}
+
+	if (!windowLongPtrW)
+	{
+		return DefWindowProcW(hWnd, Msg, wParam, lParam);
+	}
+	else
+	{
+		void* v10 = *(void**)windowLongPtrW;
+		LRESULT v11 = 0;
+		auto callback = (void(*)(LONG_PTR, HWND, UINT, WPARAM, LPARAM, LRESULT*)) * (void**)((size_t)v10 + 504);
+		callback(windowLongPtrW, hWnd, Msg, wParam, lParam, &v11);
+		return v11;
+	}
+}
+
 extern "C" __declspec(dllexport) void WINAPI OnPluginStart(HINSTANCE handle)
 {
 	OutputDebugStringW(L"[LayerFolding] OnPluginStart\n");
@@ -266,6 +298,58 @@ extern "C" __declspec(dllexport) void WINAPI OnPluginStart(HINSTANCE handle)
 			0x90, 0x90, 0x90, // nop
 		};
 		*(void**)(part3.data() + 3 + 2) = &Hook_CalcLayerHeight3;
+		RecottePluginFoundation::MemoryCopyAvoidingProtection(target, part3.data(), part3.size());
+	}
+
+	{
+		auto target = RecottePluginFoundation::SearchAddress([](std::byte* address)
+		{
+			static auto part0 = std::vector<unsigned char>
+			{
+				// loc_7FF7836D0DD4:
+				0x48, 0x85, 0xDB,                   // test    rbx, rbx
+				0x75, 0x13,                         // jnz     short loc_7FF7836D0DEC
+				0x4C, 0x8B, 0xCE,                   // mov     r9, rsi                     ; lParam
+				0x4D, 0x8B, 0xC6,                   // mov     r8, r14                     ; wParam
+				0x8B, 0xD5,                         // mov     edx, ebp                    ; Msg
+				0x48, 0x8B, 0xCF,                   // mov     rcx, rdi                    ; hWnd
+				0xFF, 0x15, 0x76, 0x2B, 0x4E, 0x00, // call    cs:DefWindowProcW
+				0xEB, 0x32,                         // jmp     short loc_7FF7836D0E1E
+				// loc_7FF7836D0DEC:
+				0x48, 0x8B, 0x03,                   // mov     rax, [rbx]
+				0x48, 0x8D, 0x4C, 0x24, 0x30,       // lea     rcx, [rsp+68h+var_38]
+				0x48, 0x89, 0x4C, 0x24, 0x28,       // mov     [rsp+68h+var_40], rcx
+				0x4D, 0x8B, 0xCE,                   // mov     r9, r14
+				0x48, 0x8B, 0xCB,                   // mov     rcx, rbx
+				0x48, 0xC7, 0x44, 0x24, 0x30, 0x00, 0x00, 0x00, 0x00, // mov     [rsp+68h+var_38], 0
+				0x44, 0x8B, 0xC5,                   // mov     r8d, ebp
+				0x48, 0x89, 0x74, 0x24, 0x20,       // mov     [rsp+68h+var_48], rsi
+				0x48, 0x8B, 0xD7,                   // mov     rdx, rdi
+				0xFF, 0x90, 0xF8, 0x01, 0x00, 0x00, // call    qword ptr [rax+1F8h]
+				0x48, 0x8B, 0x44, 0x24, 0x30,       // mov     rax, [rsp+68h+var_38]
+			};
+			if (0 != memcmp(address, part0.data(), part0.size())) return false;
+			address += part0.size();
+
+			return true;
+		});
+		auto part3 = std::vector<unsigned char> // 74
+		{
+			0x4C, 0x8B, 0xCE, // mov r9, rsi; lParam
+			0x4D, 0x8B, 0xC6, // mov r8, r14; wParam
+			0x8B, 0xD5, // mov edx, ebp; Msg
+			0x48, 0x8B, 0xCF, // mov rcx, rdi; hWnd
+			0x48, 0xB8, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // mov rax, 0FFFFFFFFFFFFFFFFh
+			0xFF, 0xD0, // call rax
+			// 23
+			0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, // nop
+			0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, // nop
+			0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, // nop
+			0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, // nop
+			0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, // nop
+			0x90, 0x90, 0x90, 0x90, // nop
+		};
+		*(void**)(part3.data() + 3 + 3 + 2 + 3 + 2) = &Hook_Dispatch;
 		RecottePluginFoundation::MemoryCopyAvoidingProtection(target, part3.data(), part3.size());
 	}
 }
