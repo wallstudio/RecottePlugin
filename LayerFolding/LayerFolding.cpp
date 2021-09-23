@@ -81,12 +81,12 @@ HWND _CreateWindowExW(DWORD dwExStyle, LPCWSTR lpClassName, LPCWSTR lpWindowName
 		while (nullptr != (prev = GetNextWindow(prev, GW_HWNDPREV))) index++;
 		if (index == 1)
 		{
-			SetWindowTextW(hwnd, L"uh_Timeline_Labels");
+			SetWindowTextW(hwnd, L"uh_timeline_labels");
 			TimelineWidnowLabels = hwnd;
 		}
 		else if (index == 2)
 		{
-			SetWindowTextW(hwnd, L"uh_Timeline_Main");
+			SetWindowTextW(hwnd, L"uh_timeline_main");
 			TimelineMainWidnow = hwnd; // WM_RBUTTONUPのコンテキストメニューにアクセスしたい…
 		}
 		return hwnd;
@@ -94,7 +94,7 @@ HWND _CreateWindowExW(DWORD dwExStyle, LPCWSTR lpClassName, LPCWSTR lpWindowName
 	
 	if (TimelineWidnowLabels != nullptr && hWndParent == TimelineWidnowLabels)
 	{
-		SetWindowTextW(hwnd, L"uh_Timeline_Labels_item");
+		SetWindowTextW(hwnd, L"uh_timeline_labels_item");
 		TimelineWidnowLabelsItems[hwnd] = new TimelineLabelItemExSetting{ .Hwnd = hwnd };
 		return hwnd;
 	}
@@ -106,7 +106,7 @@ HWND _CreateWindowExW(DWORD dwExStyle, LPCWSTR lpClassName, LPCWSTR lpWindowName
 		while (nullptr != (prev = GetNextWindow(prev, GW_HWNDPREV))) index++;
 		if(index == 1)
 		{
-			SetWindowTextW(hwnd, L"Timeline_Label_Box");
+			SetWindowTextW(hwnd, L"uh_timeline_label_box");
 			TimelineWidnowLabelsItems[hWndParent]->BoxOriginalProc = reinterpret_cast<WNDPROC>(GetWindowLongPtrW(hwnd, GWLP_WNDPROC));
 			WNDPROC proc = [](HWND boxHwnd, UINT u, WPARAM w, LPARAM l) -> LRESULT
 			{
@@ -123,6 +123,17 @@ HWND _CreateWindowExW(DWORD dwExStyle, LPCWSTR lpClassName, LPCWSTR lpWindowName
 					forceHitTestPass = nullptr;
 					PostMessageW(TimelineMainWidnow, WM_MOUSEMOVE, MK_LBUTTON, MAKELPARAM(0, pos.y));
 					PostMessageW(TimelineMainWidnow, WM_LBUTTONUP, MK_LBUTTON, MAKELPARAM(0, pos.y));
+				}
+				else if (u == WM_PAINT)
+				{
+					PAINTSTRUCT ps;
+					auto hdc = BeginPaint(boxHwnd, &ps);
+					SetBkColor(hdc, RGB(0x40, 0x40, 0x40));
+					SetTextColor(hdc, RGB(0xFF, 0xFF, 0xFF));
+					auto markText = layer->Folding ? L" > " : L" v ";
+					TextOutW(hdc, 0, 0, markText, lstrlenW(markText));
+					EndPaint(boxHwnd, &ps);
+					return 0;
 				}
 				return layer->BoxOriginalProc(boxHwnd, u, w, l);
 			};
@@ -233,7 +244,7 @@ LRESULT Hook_Dispatch(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
 
 	if(hWnd == TimelineMainWidnow && Msg == WM_LBUTTONDOWN)
 	{
-		OutputDebugStringW(L"uh_Timeline_Main LPU\n");
+		OutputDebugStringW(L"uh_timeline_main LPU\n");
 	}
 
 	if (!windowLongPtrW)
