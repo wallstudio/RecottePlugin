@@ -222,7 +222,6 @@ LayerObj::Object* Hook_HitTest(size_t a1, Vector2* click)
 		if ( click->x < x || (x + w) < click->x ) continue; // HitTest X
 		if ( click->y < y || (y + h) < click->y ) continue; // HitTest Y
 
-		OutputDebugStringW(std::format(L"objidx: {}\n", i).c_str());
 		return target; // 見つかったど！
 	}
 
@@ -241,11 +240,6 @@ LRESULT Hook_Dispatch(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
 	LONG_PTR windowLongPtrW = Msg == 1
 		? *(LONG_PTR*)lParam
 		: GetWindowLongPtrW(hWnd, -21);
-
-	if(hWnd == TimelineMainWidnow && Msg == WM_LBUTTONDOWN)
-	{
-		OutputDebugStringW(L"uh_timeline_main LPU\n");
-	}
 
 	if (!windowLongPtrW)
 	{
@@ -431,7 +425,7 @@ extern "C" __declspec(dllexport) void WINAPI OnPluginStart(HINSTANCE handle)
 		RecottePluginFoundation::MemoryCopyAvoidingProtection(target, part3, sizeof(part3));
 	}
 
-	// MessageDispacher
+	// MessageDispacher（解析用）
 	{
 		auto target = RecottePluginFoundation::SearchAddress([](std::byte* address)
 		{
