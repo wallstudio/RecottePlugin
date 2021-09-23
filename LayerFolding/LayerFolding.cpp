@@ -166,17 +166,26 @@ struct Vector2 { float x; float y; };
 struct Rect { float x; float y; float w; float h; };
 void* Hook_HitTest(size_t a1, Vector2* click)
 {
-	float timelineWidth[100];
-	auto getTimelineWidth = * (void (**)(void*, float *)) (**(size_t **)(a1 + 3176) + 176i64);
-	getTimelineWidth(*(void **)(a1 + 3176), timelineWidth);
+	union Timeline
+	{
+		union Rect
+		{
+			RecottePluginFoundation::Member<void (*)(Timeline*, Vector2*), 176> getSize;
+		};
+		RecottePluginFoundation::Member<Rect*, 0> rect;
+	};
+	auto timeline = *(Timeline**)(a1 + 3176);
+	Vector2 timelineSize;
+	timeline->rect.value->getSize.value(timeline, &timelineSize);
 	
 	LayerObj* layer = nullptr;
 	union LayerList
 	{
 		RecottePluginFoundation::Member<LayerObj**, 48> leyers;
 		RecottePluginFoundation::Member<std::int32_t, 56> leyerCount;
+		RecottePluginFoundation::Member<double, 1864> scale;
 	};
-	LayerList* layerList = (LayerList*) *(size_t *)(*(size_t *)(a1 + 2768) + 2960i64);
+	LayerList* layerList = (LayerList*) *(size_t*)(*(size_t*)(a1 + 2768) + 2960);
 	if ( layerList->leyerCount.value <= 0 ) return nullptr;
 	for (int i = layerList->leyerCount.value - 1; i >= 0; i--)
 	{
@@ -187,14 +196,14 @@ void* Hook_HitTest(size_t a1, Vector2* click)
 	}
 	if (layer == nullptr) return nullptr;
 
-	auto scale = *(double*)(*(size_t*)(*(size_t*)(a1 + 2768) + 2960) + 1864);
+	auto scale = layerList->scale.value;
 	auto offset = (double)*(std::int32_t*)(*(size_t*)(a1 + 3200) + 2640);
 	for(int i = layer->objectCount.value - 1; i >= 0; i--) // 線形探索的な
 	{
 		auto target = layer->objects.value[i];
 		auto minX = target->rectInfo.value->getMin.value(target) * scale - offset;
     	auto maxX = target->rectInfo.value->getMax.value(target) * scale - offset;
-		if ( maxX < 0.0 || timelineWidth[0] < minX) continue; // オブジェクトが画面内かチェック
+		if ( maxX < 0.0 || timelineSize.x < minX) continue; // オブジェクトが画面内かチェック
 		
 		auto x = target->rectInfo.value->getMin.value(target) * scale - offset;
 		auto w = target->rectInfo.value->getMax.value(target) * scale - offset - x;
