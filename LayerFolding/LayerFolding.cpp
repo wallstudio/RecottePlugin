@@ -59,10 +59,9 @@ struct TimelineLabelItemExSetting
 	bool Folding;
 	WNDPROC BoxOriginalProc;
 	LayerObj* data;
-	bool forceHitTestPass = false;
 };
-
 std::map<HWND, TimelineLabelItemExSetting*> TimelineWidnowLabelsItems = std::map<HWND, TimelineLabelItemExSetting*>();
+LayerObj* forceHitTestPass = nullptr;
 
 
 HWND _CreateWindowExW(DWORD dwExStyle, LPCWSTR lpClassName, LPCWSTR lpWindowName, DWORD dwStyle, int X, int Y, int nWidth, int nHeight, HWND hWndParent, HMENU hMenu, HINSTANCE hInstance, LPVOID lpParam)
@@ -119,9 +118,9 @@ HWND _CreateWindowExW(DWORD dwExStyle, LPCWSTR lpClassName, LPCWSTR lpWindowName
 					POINT pos;
 					GetCursorPos(&pos); // Yがレイヤー選択に使われるので
 
-					layer->forceHitTestPass = true;
+					forceHitTestPass = layer->data;
 					SendMessageW(TimelineMainWidnow, WM_LBUTTONDOWN, MK_LBUTTON, MAKELPARAM(0, pos.y));
-					layer->forceHitTestPass = false;
+					forceHitTestPass = nullptr;
 					PostMessageW(TimelineMainWidnow, WM_MOUSEMOVE, MK_LBUTTON, MAKELPARAM(0, pos.y));
 					PostMessageW(TimelineMainWidnow, WM_LBUTTONUP, MK_LBUTTON, MAKELPARAM(0, pos.y));
 				}
@@ -164,7 +163,7 @@ void Hook_CalcLayerHeight3(float xmm0, LayerObj* layerObj) { Hook_CalcLayerHeigh
 
 struct Vector2 { float x; float y; };
 struct Rect { float x; float y; float w; float h; };
-void* Hook_HitTest(size_t a1, Vector2* click)
+LayerObj::Object* Hook_HitTest(size_t a1, Vector2* click)
 {
 	union Timeline
 	{
@@ -216,9 +215,10 @@ void* Hook_HitTest(size_t a1, Vector2* click)
 		return target; // 見つかったど！
 	}
 
-	if (TimelineWidnowLabelsItems[layer->window.value->hwnd.value]->forceHitTestPass && layer->objectCount.value > 0)
+	if (forceHitTestPass != nullptr
+		&& forceHitTestPass->objectCount.value > 0)
 	{
-		//return layer->objects.value[0];
+		return forceHitTestPass->objects.value[0];
 	}
 
 	return nullptr;
