@@ -140,4 +140,23 @@ namespace RecottePluginFoundation
 
 		throw std::format(EMSG_NOT_FOUND_PLUGIN_DIR_UNKNOWN);
 	}
+
+
+	// object utilities
+
+	template<typename _TValue, size_t _Offset>
+	class Member
+	{
+	private:
+		std::byte dummy[_Offset];
+	public:
+		_TValue value;
+	};
+
+	template<typename _TValue>
+	class Member<_TValue, 0>
+	{
+	public:
+		_TValue value;
+	};
 }

@@ -6,6 +6,7 @@
 #include <map>
 #include <format>
 #include <math.h>
+#include <float.h>
 #include <cinttypes>
 #include "../HookHelper/HookHelper.h"
 
@@ -21,8 +22,6 @@ struct TimelineLabelItemExSetting
 	WNDPROC BoxOriginalProc;
 };
 std::map<HWND, TimelineLabelItemExSetting*> TimelineWidnowLabelsItems = std::map<HWND, TimelineLabelItemExSetting*>();
-
-
 HWND _CreateWindowExW(DWORD dwExStyle, LPCWSTR lpClassName, LPCWSTR lpWindowName, DWORD dwStyle, int X, int Y, int nWidth, int nHeight, HWND hWndParent, HMENU hMenu, HINSTANCE hInstance, LPVOID lpParam)
 {
 	auto hwnd = g_Original_CreateWindowExW(dwExStyle, lpClassName, lpWindowName, dwStyle, X, Y, nWidth, nHeight, hWndParent, hMenu, hInstance, lpParam);
@@ -83,66 +82,91 @@ HWND _CreateWindowExW(DWORD dwExStyle, LPCWSTR lpClassName, LPCWSTR lpWindowName
 }
 
 
-struct LayerObj
+union LayerObj
 {
-	struct
+	union Unknown
 	{
-		std::byte __Gap0[0x60];
-		float(*GetConstantMinHeight)();
-	}* UnknownObj;
-	std::byte __Gap0[0xE8 - sizeof(UnknownObj)];
-	struct
-	{
-		std::byte __Gap0[0x780];
-		HWND Hwnd;
-	}* WindowObj;
+		RecottePluginFoundation::Member<float(*)(), 0x60> getConstantMinHeight;
+	};
+	RecottePluginFoundation::Member<Unknown*, 0> unknown;
 
-	std::byte __Gap1[0x160 - sizeof(UnknownObj) - sizeof(__Gap0) - sizeof(WindowObj)];
-	float LayerHeight;
+	union Window
+	{
+		RecottePluginFoundation::Member<HWND, 0x780> hwnd;
+	};
+	RecottePluginFoundation::Member<Window*, 0xE8> window;
+
+	union Object
+	{
+		union RectInfo
+		{
+			RecottePluginFoundation::Member<double (*)(Object*), 184> getMin;
+			RecottePluginFoundation::Member<double (*)(Object*), 200> getMax;
+		};
+		RecottePluginFoundation::Member<RectInfo*, 0> rectInfo;
+	};
+	RecottePluginFoundation::Member<Object**, 0x130> objects;
+
+	RecottePluginFoundation::Member<std::int32_t, 0x138> objectCount;
+
+	RecottePluginFoundation::Member<float, 0x160> layerHeight;
+
+	RecottePluginFoundation::Member<bool, 0x379> invalid;
 };
 
-void Hook_CalcLayerHeight(LayerObj* layerObj)
-{
-	if (layerObj == nullptr
-		|| layerObj->WindowObj == nullptr 
-		|| layerObj->WindowObj->Hwnd == nullptr
-		|| !TimelineWidnowLabelsItems.contains(layerObj->WindowObj->Hwnd))
-	{
-		return; // RSPの読み込みタイミングによって、CreateWindowより先に来ることがあるっぽい
-	}
-
-	auto additionalSetting = TimelineWidnowLabelsItems[layerObj->WindowObj->Hwnd];
-	if (additionalSetting->Folding)
-	{
-		layerObj->LayerHeight = 68.0f; // デフォルトの最小値
-		UpdateWindow(layerObj->WindowObj->Hwnd);
-	}
-}
 
 void Hook_CalcLayerHeight2(float xmm0, LayerObj* layerObj)
 {
 	if (layerObj == nullptr
-		|| layerObj->WindowObj == nullptr 
-		|| layerObj->WindowObj->Hwnd == nullptr
-		|| !TimelineWidnowLabelsItems.contains(layerObj->WindowObj->Hwnd))
+		|| layerObj->window.value == nullptr 
+		|| layerObj->window.value->hwnd.value == nullptr
+		|| !TimelineWidnowLabelsItems.contains(layerObj->window.value->hwnd.value))
 	{
 		return; // RSPの読み込みタイミングによって、CreateWindowより先に来ることがあるっぽい
 	}
 
-	if (layerObj->LayerHeight < xmm0)
+	if (layerObj->layerHeight.value < xmm0)
 	{
-		layerObj->LayerHeight = layerObj->UnknownObj->GetConstantMinHeight();
+		layerObj->layerHeight.value = layerObj->unknown.value->getConstantMinHeight.value();
 	}
 
-	auto additionalSetting = TimelineWidnowLabelsItems[layerObj->WindowObj->Hwnd];
+	auto additionalSetting = TimelineWidnowLabelsItems[layerObj->window.value->hwnd.value];
 	if (additionalSetting->Folding)
 	{
-		layerObj->LayerHeight = 68.0f; // デフォルトの最小値
-		UpdateWindow(layerObj->WindowObj->Hwnd);
+		layerObj->layerHeight.value = 68.0f; // デフォルトの最小値
+		UpdateWindow(layerObj->window.value->hwnd.value);
 	}
 }
-
+void Hook_CalcLayerHeight(LayerObj* layerObj) { Hook_CalcLayerHeight2(-FLT_MAX, layerObj); }
 void Hook_CalcLayerHeight3(float xmm0, LayerObj* layerObj) { Hook_CalcLayerHeight2(xmm0, layerObj); }
+
+
+struct Vector2 { float x; float y; };
+struct Rect { float x; float y; float w; float h; };
+std::int64_t (*ExtractRect)(size_t, Rect*, LayerObj::Object*);
+void* Hook_HitTest(size_t a1, LayerObj* layer, float timelineWidth, Vector2* click)
+{
+	if ( layer->invalid.value ) return nullptr;
+
+	for(int i = layer->objectCount.value - 1; i >= 0; i--) // 線形探索的な
+	{
+		auto target = layer->objects.value[i];
+		auto scale = *(double*)(*(size_t*)(*(size_t*)(a1 + 2768) + 2960) + 1864);
+		auto offset = (double)*(std::int32_t*)(*(size_t*)(a1 + 3200) + 2640);
+		auto minX = target->rectInfo.value->getMin.value(target) * scale - offset;
+    	auto maxX = target->rectInfo.value->getMax.value(target) * scale - offset;
+		if ( maxX < 0.0 || timelineWidth < minX) continue; // オブジェクトが画面内かチェック
+		
+		Rect rect;
+		ExtractRect(a1, &rect, target);
+		if ( click->x < rect.x || (rect.x + rect.w) < click->x ) continue; // HitTest X
+		if ( click->y < rect.y || (rect.y + rect.h) < click->y ) continue; // HitTest Y
+
+		return target; // 見つかったど！
+	}
+	return nullptr;
+}
+
 
 LRESULT Hook_Dispatch(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
 {
@@ -150,16 +174,9 @@ LRESULT Hook_Dispatch(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
 		? *(LONG_PTR*)lParam
 		: GetWindowLongPtrW(hWnd, -21);
 
-	wchar_t text[256];
-	GetWindowTextW(hWnd, text, _countof(text));
-	if (std::wstring(text) == L"uh_Timeline_Main")
+	if(hWnd == TimelineMainWidnow && Msg == WM_LBUTTONDOWN)
 	{
-		OutputDebugStringW(L"uh_Timeline_Main\n");
-
-		if (Msg == WM_LBUTTONDOWN)
-		{
-			OutputDebugStringW(L"LPU\n");
-		}
+		OutputDebugStringW(L"uh_Timeline_Main LPU\n");
 	}
 
 	if (!windowLongPtrW)
@@ -176,48 +193,6 @@ LRESULT Hook_Dispatch(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
 	}
 }
 
-struct Layer
-{
-	std::byte _dummy0[0x130];
-	struct Object
-	{
-		struct
-		{
-			std::byte _dummy0[184];
-			double (*getMin)(Object*);
-			std::byte _dummy2[200 - sizeof(_dummy0) - sizeof(getMin)];
-			double (*getMax)(Object*);
-		}* v;
-	}** objects;
-	std::int32_t objectCount;
-	std::byte _dummy1[0x379 - sizeof(_dummy0) - sizeof(objects) - sizeof(objectCount)];
-	bool invalid;
-};
-struct V2 { float x; float y; };
-struct Rect { float x; float y; float w; float h; };
-std::int64_t (*ExtractRect)(size_t, Rect*, Layer::Object*);
-void* Hook_HitTest(size_t a1, Layer* layer, float timelineWidth, V2* click)
-{
-	if ( layer->invalid ) return nullptr;
-
-	for(int i = layer->objectCount - 1; i >= 0; i--) // 線形探索的な
-	{
-		auto target = layer->objects[i];
-		auto scale = *(double*)(*(size_t*)(*(size_t*)(a1 + 2768) + 2960) + 1864);
-		auto offset = (double)*(std::int32_t*)(*(size_t*)(a1 + 3200) + 2640);
-		auto minX = target->v->getMin(target) * scale - offset;
-    	auto maxX = target->v->getMax(target) * scale - offset;
-		if ( maxX < 0.0 || timelineWidth < minX) continue; // オブジェクトが画面内かチェック
-		
-		Rect rect;
-		ExtractRect(a1, &rect, target);
-		if ( click->x < rect.x || (rect.x + rect.w) < click->x ) continue; // HitTest X
-		if ( click->y < rect.y || (rect.y + rect.h) < click->y ) continue; // HitTest Y
-
-		return target; // 見つかったど！
-	}
-	return nullptr;
-}
 
 extern "C" __declspec(dllexport) void WINAPI OnPluginStart(HINSTANCE handle)
 {
@@ -345,6 +320,7 @@ extern "C" __declspec(dllexport) void WINAPI OnPluginStart(HINSTANCE handle)
 		RecottePluginFoundation::MemoryCopyAvoidingProtection(target, part3.data(), part3.size());
 	}
 
+	// HitTest
 	{
 		auto target = RecottePluginFoundation::SearchAddress([](std::byte* address)
 		{
@@ -400,6 +376,7 @@ extern "C" __declspec(dllexport) void WINAPI OnPluginStart(HINSTANCE handle)
 		RecottePluginFoundation::MemoryCopyAvoidingProtection(target, part3, sizeof(part3));
 	}
 
+	// MessageDispacher
 	{
 		auto target = RecottePluginFoundation::SearchAddress([](std::byte* address)
 		{
