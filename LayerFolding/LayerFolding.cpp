@@ -176,6 +176,12 @@ struct Vector2 { float x; float y; };
 struct Rect { float x; float y; float w; float h; };
 LayerObj::Object* Hook_HitTest(size_t a1, Vector2* click)
 {
+	if (forceHitTestPass != nullptr
+		&& forceHitTestPass->objectCount.value > 0)
+	{
+		return forceHitTestPass->objects.value[0];
+	}
+
 	union Timeline
 	{
 		union Rect
@@ -223,12 +229,6 @@ LayerObj::Object* Hook_HitTest(size_t a1, Vector2* click)
 		if ( click->y < y || (y + h) < click->y ) continue; // HitTest Y
 
 		return target; // 見つかったど！
-	}
-
-	if (forceHitTestPass != nullptr
-		&& forceHitTestPass->objectCount.value > 0)
-	{
-		return forceHitTestPass->objects.value[0];
 	}
 
 	return nullptr;
