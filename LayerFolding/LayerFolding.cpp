@@ -15,13 +15,56 @@ decltype(&CreateWindowExW) g_Original_CreateWindowExW;
 HWND TimelineWindow = nullptr;
 HWND TimelineWidnowLabels = nullptr;
 HWND TimelineMainWidnow = nullptr;
+
+union LayerObj
+{
+	union Unknown
+	{
+		RecottePluginFoundation::Member<float(*)(), 0x60> getConstantMinHeight;
+	};
+	RecottePluginFoundation::Member<Unknown*, 0> unknown;
+
+	union Window
+	{
+		RecottePluginFoundation::Member<HWND, 0x780> hwnd;
+	};
+	RecottePluginFoundation::Member<Window*, 0xE8> window;
+
+	union Object
+	{
+		union RectInfo
+		{
+			RecottePluginFoundation::Member<double (*)(Object*), 184> getMin;
+			RecottePluginFoundation::Member<double (*)(Object*), 200> getMax;
+		};
+		RecottePluginFoundation::Member<RectInfo*, 0> rectInfo;
+		RecottePluginFoundation::Member<LayerObj*, 296> layerInfo;
+		RecottePluginFoundation::Member<float, 784> y;
+		RecottePluginFoundation::Member<float, 792> h;
+	};
+	RecottePluginFoundation::Member<Object**, 0x130> objects;
+
+	RecottePluginFoundation::Member<std::int32_t, 0x138> objectCount;
+
+	RecottePluginFoundation::Member<float, 0x160> layerHeight;
+
+	RecottePluginFoundation::Member<bool, 0x379> invalid;
+
+	RecottePluginFoundation::Member<float, 892> leyerMinY;
+};
+
 struct TimelineLabelItemExSetting
 {
 	HWND Hwnd;
 	bool Folding;
 	WNDPROC BoxOriginalProc;
+	LayerObj* data;
+	bool forceHitTestPass = false;
 };
+
 std::map<HWND, TimelineLabelItemExSetting*> TimelineWidnowLabelsItems = std::map<HWND, TimelineLabelItemExSetting*>();
+
+
 HWND _CreateWindowExW(DWORD dwExStyle, LPCWSTR lpClassName, LPCWSTR lpWindowName, DWORD dwStyle, int X, int Y, int nWidth, int nHeight, HWND hWndParent, HMENU hMenu, HINSTANCE hInstance, LPVOID lpParam)
 {
 	auto hwnd = g_Original_CreateWindowExW(dwExStyle, lpClassName, lpWindowName, dwStyle, X, Y, nWidth, nHeight, hWndParent, hMenu, hInstance, lpParam);
@@ -66,13 +109,23 @@ HWND _CreateWindowExW(DWORD dwExStyle, LPCWSTR lpClassName, LPCWSTR lpWindowName
 		{
 			SetWindowTextW(hwnd, L"Timeline_Label_Box");
 			TimelineWidnowLabelsItems[hWndParent]->BoxOriginalProc = reinterpret_cast<WNDPROC>(GetWindowLongPtrW(hwnd, GWLP_WNDPROC));
-			WNDPROC proc = [](HWND h, UINT u, WPARAM w, LPARAM l) -> LRESULT
+			WNDPROC proc = [](HWND boxHwnd, UINT u, WPARAM w, LPARAM l) -> LRESULT
 			{
+				auto layer = TimelineWidnowLabelsItems[GetParent(boxHwnd)];
 				if (u == WM_LBUTTONUP)
 				{
-					TimelineWidnowLabelsItems[GetParent(h)]->Folding = !TimelineWidnowLabelsItems[GetParent(h)]->Folding;
+					layer->Folding ^= true;
+
+					POINT pos;
+					GetCursorPos(&pos); // Yがレイヤー選択に使われるので
+
+					layer->forceHitTestPass = true;
+					SendMessageW(TimelineMainWidnow, WM_LBUTTONDOWN, MK_LBUTTON, MAKELPARAM(0, pos.y));
+					layer->forceHitTestPass = false;
+					PostMessageW(TimelineMainWidnow, WM_MOUSEMOVE, MK_LBUTTON, MAKELPARAM(0, pos.y));
+					PostMessageW(TimelineMainWidnow, WM_LBUTTONUP, MK_LBUTTON, MAKELPARAM(0, pos.y));
 				}
-				return TimelineWidnowLabelsItems[GetParent(h)]->BoxOriginalProc(h, u, w, l);
+				return layer->BoxOriginalProc(boxHwnd, u, w, l);
 			};
 			SetWindowLongPtrW(hwnd, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(proc));
 		}
@@ -80,39 +133,6 @@ HWND _CreateWindowExW(DWORD dwExStyle, LPCWSTR lpClassName, LPCWSTR lpWindowName
 
 	return hwnd;
 }
-
-
-union LayerObj
-{
-	union Unknown
-	{
-		RecottePluginFoundation::Member<float(*)(), 0x60> getConstantMinHeight;
-	};
-	RecottePluginFoundation::Member<Unknown*, 0> unknown;
-
-	union Window
-	{
-		RecottePluginFoundation::Member<HWND, 0x780> hwnd;
-	};
-	RecottePluginFoundation::Member<Window*, 0xE8> window;
-
-	union Object
-	{
-		union RectInfo
-		{
-			RecottePluginFoundation::Member<double (*)(Object*), 184> getMin;
-			RecottePluginFoundation::Member<double (*)(Object*), 200> getMax;
-		};
-		RecottePluginFoundation::Member<RectInfo*, 0> rectInfo;
-	};
-	RecottePluginFoundation::Member<Object**, 0x130> objects;
-
-	RecottePluginFoundation::Member<std::int32_t, 0x138> objectCount;
-
-	RecottePluginFoundation::Member<float, 0x160> layerHeight;
-
-	RecottePluginFoundation::Member<bool, 0x379> invalid;
-};
 
 
 void Hook_CalcLayerHeight2(float xmm0, LayerObj* layerObj)
@@ -131,6 +151,7 @@ void Hook_CalcLayerHeight2(float xmm0, LayerObj* layerObj)
 	}
 
 	auto additionalSetting = TimelineWidnowLabelsItems[layerObj->window.value->hwnd.value];
+	additionalSetting->data = layerObj;
 	if (additionalSetting->Folding)
 	{
 		layerObj->layerHeight.value = 68.0f; // デフォルトの最小値
@@ -143,27 +164,54 @@ void Hook_CalcLayerHeight3(float xmm0, LayerObj* layerObj) { Hook_CalcLayerHeigh
 
 struct Vector2 { float x; float y; };
 struct Rect { float x; float y; float w; float h; };
-std::int64_t (*ExtractRect)(size_t, Rect*, LayerObj::Object*);
-void* Hook_HitTest(size_t a1, LayerObj* layer, float timelineWidth, Vector2* click)
+void* Hook_HitTest(size_t a1, Vector2* click)
 {
-	if ( layer->invalid.value ) return nullptr;
+	float timelineWidth[100];
+	auto getTimelineWidth = * (void (**)(void*, float *)) (**(size_t **)(a1 + 3176) + 176i64);
+	getTimelineWidth(*(void **)(a1 + 3176), timelineWidth);
+	
+	LayerObj* layer = nullptr;
+	union LayerList
+	{
+		RecottePluginFoundation::Member<LayerObj**, 48> leyers;
+		RecottePluginFoundation::Member<std::int32_t, 56> leyerCount;
+	};
+	LayerList* layerList = (LayerList*) *(size_t *)(*(size_t *)(a1 + 2768) + 2960i64);
+	if ( layerList->leyerCount.value <= 0 ) return nullptr;
+	for (int i = layerList->leyerCount.value - 1; i >= 0; i--)
+	{
+		layer = layerList->leyers.value[i];
+		if (layer->invalid.value) continue;
+		if ( click->y < layer->leyerMinY.value || (layer->leyerMinY.value + layer->layerHeight.value) < click->y ) continue;
+		break;
+	}
+	if (layer == nullptr) return nullptr;
 
+	auto scale = *(double*)(*(size_t*)(*(size_t*)(a1 + 2768) + 2960) + 1864);
+	auto offset = (double)*(std::int32_t*)(*(size_t*)(a1 + 3200) + 2640);
 	for(int i = layer->objectCount.value - 1; i >= 0; i--) // 線形探索的な
 	{
 		auto target = layer->objects.value[i];
-		auto scale = *(double*)(*(size_t*)(*(size_t*)(a1 + 2768) + 2960) + 1864);
-		auto offset = (double)*(std::int32_t*)(*(size_t*)(a1 + 3200) + 2640);
 		auto minX = target->rectInfo.value->getMin.value(target) * scale - offset;
     	auto maxX = target->rectInfo.value->getMax.value(target) * scale - offset;
-		if ( maxX < 0.0 || timelineWidth < minX) continue; // オブジェクトが画面内かチェック
+		if ( maxX < 0.0 || timelineWidth[0] < minX) continue; // オブジェクトが画面内かチェック
 		
-		Rect rect;
-		ExtractRect(a1, &rect, target);
-		if ( click->x < rect.x || (rect.x + rect.w) < click->x ) continue; // HitTest X
-		if ( click->y < rect.y || (rect.y + rect.h) < click->y ) continue; // HitTest Y
+		auto x = target->rectInfo.value->getMin.value(target) * scale - offset;
+		auto w = target->rectInfo.value->getMax.value(target) * scale - offset - x;
+		auto y = target->y.value + target->layerInfo.value->leyerMinY.value;
+		auto h = target->h.value;
+		if ( click->x < x || (x + w) < click->x ) continue; // HitTest X
+		if ( click->y < y || (y + h) < click->y ) continue; // HitTest Y
 
+		OutputDebugStringW(std::format(L"objidx: {}\n", i).c_str());
 		return target; // 見つかったど！
 	}
+
+	if (TimelineWidnowLabelsItems[layer->window.value->hwnd.value]->forceHitTestPass && layer->objectCount.value > 0)
+	{
+		//return layer->objects.value[0];
+	}
+
 	return nullptr;
 }
 
@@ -324,55 +372,42 @@ extern "C" __declspec(dllexport) void WINAPI OnPluginStart(HINSTANCE handle)
 	{
 		auto target = RecottePluginFoundation::SearchAddress([](std::byte* address)
 		{
-			static unsigned char part0[] = {
-				// loc_7FF7837F96BD:
-				0x80, 0xBB, 0x79, 0x03, 0x00, 0x00, 0x00,   // cmp byte ptr [rbx+379h], 0
-				0x75, 0xD1,    								// jnz short loc_7FF7837F9697
-				0x8B, 0x83, 0x38, 0x01, 0x00, 0x00,	  		// mov eax, [rbx+138h]
-				0x83, 0xE8, 0x01,   						// sub eax, 1
-				0x48, 0x63, 0xF8,   						// movsxd rdi, eax
-				0x78, 0xC3,    								// js short loc_7FF7837F9697
-				0x0F, 0x57, 0xFF,   						// xorps xmm7, xmm7
-				0x66, 0x0F, 0x1F, 0x84, 0x00, 0x00, 0x00, 0x00, 0x00, // nop word ptr [rax+rax+00000000h]
-				// loc_7FF7837F96E0:
+			static unsigned char part0[] =
+			{
+				// function start
+				// .text:00007FF6AEBB9600             HitTest proc near        
+				0x48, 0x89, 0x5C, 0x24, 0x10, 				// mov [rsp+arg_8], rbx
+				0x48, 0x89, 0x6C, 0x24, 0x18, 				// mov [rsp+arg_10], rbp
+				0x48, 0x89, 0x74, 0x24, 0x20, 				// mov [rsp+arg_18], rsi
+				0x57,										// push    rdi
+				0x41, 0x56, 								// push    r14
+				0x41, 0x57,									// push    r15
+				0x48, 0x83, 0xEC, 0x50,						// sub     rsp, 50h
+				// start main proc
+				0x4C, 0x8B, 0xF1, 							// mov     r14, rcx
+				0x0F, 0x29, 0x74, 0x24, 0x40, 				// movaps  [rsp+68h+var_28], xmm6
+				0x48, 0x8B, 0x89, 0x68, 0x0C, 0x00, 0x00, 	// mov     rcx, [rcx+0C68h]
+				0x48, 0x8B, 0xEA, 							// mov     rbp, rdx
+				0x48, 0x8D, 0x54, 0x24, 0x70, 				// lea     rdx, [rsp+68h+timelineWidth]
+				0x0F, 0x29, 0x7C, 0x24, 0x30, 				// movaps  [rsp+68h+var_38], xmm7
+				0x48, 0x8B, 0x01, 							// mov     rax, [rcx]
+				0xFF, 0x90, 0xB0, 0x00, 0x00, 0x00, 		// call    qword ptr [rax+0B0h]
+				0x49, 0x8B, 0x86, 0xD0, 0x0A, 0x00, 0x00, 	// mov     rax, [r14+0AD0h]
+				0x48, 0x8B, 0x80, 0x90, 0x0B, 0x00, 0x00, 	// mov     rax, [rax+0B90h]
+				0x48, 0x63, 0x48, 0x38, 					// movsxd  rcx, dword ptr [rax+38h]
+				0x85, 0xC9, 								// test    ecx, ecx
 			};
 			if (0 != memcmp(address, part0, sizeof(part0))) return false;
 			address += sizeof(part0);
-			address += 0x00007FF7837F9782 - 0x00007FF7837F96E0;
-			auto offsetExtractRect = *(std::int32_t*)(address + 1);
-			address += 5;
-			ExtractRect = (decltype(ExtractRect))(address + offsetExtractRect);
 			return true;
 		});
 		unsigned char part3[]
 		{
-			0b0100'1'0'0'1, 0x8B, 0b11'001'110, // mov rcx r14 ; arg0 = a1
-			0b0100'1'0'0'0, 0x8B, 0b11'010'011, // mov rdx rbx ; arg1 = layer
-			0xF3, 0x0F, 0x10, 0b01'010'100, 0b00'100'100, 0x68+0x8, // movss xmm2 [rsp+rsp*0+68h+timelineWidth] ; arg2 = timelineWidth
-			0b0100'1'1'0'0, 0x8B, 0b11'001'101, // mov r9 rbp ; arg3 = click
 			0b0100'1'0'0'0, 0xB8 + 0b000,  0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // mov rax, 0FFFFFFFFFFFFFFFFh
-			0xFF, 0xD0, // call rax
-			0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, // nop
-
-			// 00007FF7837F96E0 ~ 00007FF7837F97D5 (F5)
-			0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90,
-			0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90,
-			0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90,
-			0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90,
-			0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90,
-			0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90,
-			0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90,
-			0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90,
-			0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90,
-			0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90,
-			0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90,
-			0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90,
-			0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90,
-			0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90,
-			0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90,
-			0x90, 0x90, 0x90, 0x90, 0x90, // nop
+			0xFF, 0b11'100'000, // jmp rax
+			0x90, 0x90, 0x90, // nop
 		};
-		*(void**)&part3[3 + 3 + 6 + 3 + 2] = &Hook_HitTest;
+		*(void**)&part3[2] = &Hook_HitTest;
 		RecottePluginFoundation::MemoryCopyAvoidingProtection(target, part3, sizeof(part3));
 	}
 
