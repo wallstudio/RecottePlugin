@@ -168,4 +168,27 @@ namespace RecottePluginFoundation
 		_TValue operator =(_TValue v) { return (value = v); }
 
 	};
+
+	template<typename _TValue, size_t _MemberOffset, size_t _VTableOffset>
+	class VirtualMember
+	{
+	private:
+		std::byte dummy[_VTableOffset];
+		Member<_TValue, _MemberOffset>* vTable;
+	public:
+		const _TValue& get() { return vTable->get(); }
+		const _TValue& operator ->() { return vTable->get(); }
+		_TValue operator =(_TValue v) { return (vTable->get() = v); }
+	};
+
+	template<typename _TValue, size_t _MemberOffset>
+	class VirtualMember<_TValue, _MemberOffset, 0>
+	{
+	private:
+		Member<_TValue, _MemberOffset>* vTable;
+	public:
+		const _TValue& get() { return vTable->get(); }
+		const _TValue& operator ->() { return vTable->get(); }
+		_TValue operator =(_TValue v) { return (vTable->get() = v); }
+	};
 }
