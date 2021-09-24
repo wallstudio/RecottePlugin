@@ -166,7 +166,7 @@ LayerObj::Object* Hook_HitTest(A1* a1, Vector2* click)
 	{
 		auto target = layer->objects.get()[i];
 		auto minX = target->getMin.get()(target) * scale - offset;
-    	auto maxX = target->getMax.get()(target) * scale - offset;
+		auto maxX = target->getMax.get()(target) * scale - offset;
 		if ( maxX < 0.0 || timelineSize.x < minX) continue; // オブジェクトが画面内かチェック
 		
 		auto x = target->getMin.get()(target) * scale - offset;

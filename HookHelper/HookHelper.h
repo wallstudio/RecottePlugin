@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
 #include <string>
@@ -10,11 +10,11 @@
 
 namespace RecottePluginFoundation
 {
-	const auto EMSG_NOT_FOUND_ADDRESS = L"�㏑���Ώۂ̋@�\���������܂���\r\nRecotteStudio�{�̂̃A�b�v�f�[�g�ɂ��݊������Ȃ��Ȃ����\��������܂�";
-	const auto EMSG_NOT_FOUND_APP_DIR = L"RecotteStudio�{�̂��C���X�g�[�����ꂽ�t�H���_��������܂���ł��� {}";
-	const auto EMSG_NOT_FOUND_PLUGIN_DIR_ENV = L"���ϐ� \"RECOTTE_PLUGIN_DIR\" �Ŏw�肳�ꂽPlugin�t�H���_�̏ꏊ���������܂���\r\n{}";
-	const auto EMSG_NOT_FOUND_PLUGIN_DIR_HOME = L"���[�U�[�t�H���_����Plugin�t�H���_���������܂���\r\n {}";
-	const auto EMSG_NOT_FOUND_PLUGIN_DIR_UNKNOWN = L"���[�U�[�t�H���_���������܂���";
+	const auto EMSG_NOT_FOUND_ADDRESS = L"上書き対象の機能が見つけられません\r\nRecotteStudio本体のアップデートにより互換性がなくなった可能性があります";
+	const auto EMSG_NOT_FOUND_APP_DIR = L"RecotteStudio本体がインストールされたフォルダが見つかりませんでした {}";
+	const auto EMSG_NOT_FOUND_PLUGIN_DIR_ENV = L"環境変数 \"RECOTTE_PLUGIN_DIR\" で指定されたPluginフォルダの場所が見つけられません\r\n{}";
+	const auto EMSG_NOT_FOUND_PLUGIN_DIR_HOME = L"ユーザーフォルダ内にPluginフォルダが見つけられません\r\n {}";
+	const auto EMSG_NOT_FOUND_PLUGIN_DIR_UNKNOWN = L"ユーザーフォルダが見つけられません";
 
 
 	template<typename T = void>
@@ -109,12 +109,12 @@ namespace RecottePluginFoundation
 
 	inline std::filesystem::path ResolvePluginPath()
 	{
-		// �A�Z���u�����x���Ō݊����̂Ȃ�RecottePluginFundation�ł��g�������̂Ńw�b�_�������K�{
+		// アセンブリレベルで互換性のないRecottePluginFundationでも使いたいのでヘッダ実装が必須
 
 		std::vector<wchar_t> buffer;
 		size_t buffSize;
 
-		// ���ϐ����[�h�ifor Dev�j
+		// 環境変数モード（for Dev）
 		_wgetenv_s(&buffSize, nullptr, 0, L"RECOTTE_PLUGIN_DIR");
 		if (buffSize != 0)
 		{
@@ -126,7 +126,7 @@ namespace RecottePluginFoundation
 			return path;
 		}
 
-		// User�f�B���N�g�����[�h�i�ǉ��C���X�g�[�����Ղ��悤�Ɂj
+		// Userディレクトリモード（追加インストールし易いように）
 		_wgetenv_s(&buffSize, nullptr, 0, L"HOMEPATH");
 		buffer = std::vector<wchar_t>(buffSize);
 		_wgetenv_s(&buffSize, buffer.data(), buffer.size(), L"HOMEPATH");

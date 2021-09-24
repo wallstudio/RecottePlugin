@@ -1,7 +1,7 @@
 .data
-extern PA : qword
+    extern PA : qword
 .code
-JMPtoAPI proc
-jmp qword ptr [PA]
-JMPtoAPI endp
+    JMPtoAPI proc
+        jmp qword ptr [PA]
+    JMPtoAPI endp
 end
