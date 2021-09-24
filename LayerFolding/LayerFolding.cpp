@@ -8,7 +8,6 @@
 #include <math.h>
 #include <float.h>
 #include <cinttypes>
-#include "../HookHelper/HookHelper.h"
 #include "RecotteObject.h"
 
 
@@ -145,17 +144,16 @@ LayerObj::Object* Hook_HitTest(A1* a1, Vector2* click)
 		return forceHitTestPass->objects.get()[0];
 	}
 
-	Vector2 timelineSize;
+	Vector2 timelineSize = {0};
 	a1->timeline->getSize.get()(a1->timeline.get(), &timelineSize);
-	
 	LayerObj* layer = nullptr;
 	auto layerList = a1->unknown0->layerList.get();
-	if ( layerList->leyerCount.get() <= 0 ) return nullptr;
+	if (layerList->leyerCount.get() <= 0) return nullptr;
 	for (int i = layerList->leyerCount.get() - 1; i >= 0; i--)
 	{
 		layer = layerList->leyers.get()[i];
 		if (layer->invalid.get()) continue;
-		if ( click->y < layer->leyerMinY.get() || (layer->leyerMinY.get() + layer->layerHeight.get()) < click->y ) continue;
+		if (click->y < layer->leyerMinY.get() || (layer->leyerMinY.get() + layer->layerHeight.get()) < click->y) continue;
 		break;
 	}
 	if (layer == nullptr) return nullptr;
@@ -166,7 +164,7 @@ LayerObj::Object* Hook_HitTest(A1* a1, Vector2* click)
 	{
 		auto target = layer->objects.get()[i];
 		auto minX = target->getMin.get()(target) * scale - offset;
-		auto maxX = target->getMax.get()(target) * scale - offset;
+    	auto maxX = target->getMax.get()(target) * scale - offset;
 		if ( maxX < 0.0 || timelineSize.x < minX) continue; // オブジェクトが画面内かチェック
 		
 		auto x = target->getMin.get()(target) * scale - offset;
@@ -178,7 +176,6 @@ LayerObj::Object* Hook_HitTest(A1* a1, Vector2* click)
 
 		return target; // 見つかったど！
 	}
-
 	return nullptr;
 }
 
@@ -206,8 +203,6 @@ LRESULT Hook_Dispatch(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
 
 extern "C" __declspec(dllexport) void WINAPI OnPluginStart(HINSTANCE handle)
 {
-	OutputDebugStringW(L"[LayerFolding] OnPluginStart\n");
-
 	g_Original_CreateWindowExW = RecottePluginFoundation::OverrideIATFunction("user32.dll", "CreateWindowExW", _CreateWindowExW);
 
 	// 話者レイヤー
@@ -427,7 +422,4 @@ extern "C" __declspec(dllexport) void WINAPI OnPluginStart(HINSTANCE handle)
 	}
 }
 
-extern "C" __declspec(dllexport) void WINAPI OnPluginFinish(HINSTANCE haneld)
-{
-	OutputDebugStringW(L"[LayerFolding] OnPluginFinish\n");
-}
+extern "C" __declspec(dllexport) void WINAPI OnPluginFinish(HINSTANCE haneld) {}

@@ -17,13 +17,13 @@ namespace RecottePluginFoundation
 
 	IMAGE_THUNK_DATA* LockupMappedFunctionFromIAT(const std::string& moduleName, const std::string& functionName)
 	{
-		PIMAGE_DOS_HEADER pImgDosHeaders = reinterpret_cast<PIMAGE_DOS_HEADER>(GetModuleHandleW(nullptr));
-		PIMAGE_NT_HEADERS pImgNTHeaders = Offset<IMAGE_NT_HEADERS>(pImgDosHeaders, pImgDosHeaders->e_lfanew);
-		PIMAGE_IMPORT_DESCRIPTOR pImgImportDesc = Offset<IMAGE_IMPORT_DESCRIPTOR>(pImgDosHeaders, pImgNTHeaders->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT].VirtualAddress);
+		auto pImgDosHeaders = (IMAGE_DOS_HEADER*)GetModuleHandleW(nullptr);
+		auto pImgNTHeaders = Offset<IMAGE_NT_HEADERS>(pImgDosHeaders, pImgDosHeaders->e_lfanew);
+		auto pImgImportDesc = Offset<IMAGE_IMPORT_DESCRIPTOR>(pImgDosHeaders, pImgNTHeaders->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT].VirtualAddress);
 
 		if (pImgDosHeaders->e_magic != IMAGE_DOS_SIGNATURE) throw std::format(EMSG_NOT_DOS_DLL, RecottePluginFoundation::AsciiToWide(moduleName), RecottePluginFoundation::AsciiToWide(functionName));
 
-		for (IMAGE_IMPORT_DESCRIPTOR* iid = pImgImportDesc; iid->Name != NULL; iid++)
+		for (auto iid = pImgImportDesc; iid->Name != NULL; iid++)
 		{
 			if (0 != _stricmp(moduleName.c_str(), RvaToVa<char>(iid->Name))) continue;
 

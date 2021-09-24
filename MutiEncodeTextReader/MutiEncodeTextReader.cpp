@@ -60,17 +60,12 @@ HANDLE _CreateFileW(LPCWSTR lpFileName, DWORD dwDesiredAccess, DWORD dwShareMode
 	}
 
 	auto result = g_Original_CreateFileW(lpFileName, dwDesiredAccess, dwShareMode, lpSecurityAttributes, dwCreationDisposition, dwFlagsAndAttributes, hTemplateFile);
-	OutputDebugStringW(std::format(L"[MutiEncodeTextReader] _ReadFile {}\n", path.c_str()).c_str());
 	return result;
 }
 
 extern "C" __declspec(dllexport) void WINAPI OnPluginStart(HINSTANCE handle)
 {
-	OutputDebugStringW(L"[RecotteShaderLoader] " __FUNCTION__ "\n");
 	g_Original_CreateFileW = RecottePluginFoundation::OverrideIATFunction("kernel32.dll", "CreateFileW", _CreateFileW);
 }
 
-extern "C" __declspec(dllexport) void WINAPI OnPluginFinish(HINSTANCE haneld)
-{
-	OutputDebugStringW(L"[RecotteShaderLoader]" __FUNCTION__ "\n");
-}
+extern "C" __declspec(dllexport) void WINAPI OnPluginFinish(HINSTANCE haneld) {}

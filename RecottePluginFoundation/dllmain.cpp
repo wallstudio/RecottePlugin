@@ -20,7 +20,6 @@ auto g_Plugins = std::map<std::filesystem::path, HINSTANCE>();
 
 void OnAttach()
 {
-	OutputDebugStringA("ProxyDLL loaded!\n");
 	try
 	{
 		static auto pluginsDirectroy = RecottePluginFoundation::ResolvePluginPath();
@@ -68,7 +67,6 @@ void OnAttach()
 
 void OnDetach()
 {
-	OutputDebugStringA("ProxyDLL unloaded!\n");
 	try
 	{
 		for (auto plugin : g_Plugins)

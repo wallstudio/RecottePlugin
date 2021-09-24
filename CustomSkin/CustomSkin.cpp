@@ -110,8 +110,6 @@ uint64_t Hook_DrawTimeline_DrawLayerFoundation(void** drawInfo, float* xywh)
 
 extern "C" __declspec(dllexport) void WINAPI OnPluginStart(HINSTANCE handle)
 {
-	OutputDebugStringW(L"[CustomSkin] OnPluginStart\n");
-
 	{
 		auto target = RecottePluginFoundation::SearchAddress([&](std::byte* address)
 		{
@@ -195,7 +193,4 @@ extern "C" __declspec(dllexport) void WINAPI OnPluginStart(HINSTANCE handle)
 	}
 }
 
-extern "C" __declspec(dllexport) void WINAPI OnPluginFinish(HINSTANCE haneld)
-{
-	OutputDebugStringW(L"[CustomSkin] OnPluginFinish\n");
-}
+extern "C" __declspec(dllexport) void WINAPI OnPluginFinish(HINSTANCE haneld) {}
