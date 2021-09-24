@@ -205,6 +205,8 @@ extern "C" __declspec(dllexport) void WINAPI OnPluginStart(HINSTANCE handle)
 {
 	g_Original_CreateWindowExW = RecottePluginFoundation::OverrideIATFunction("user32.dll", "CreateWindowExW", _CreateWindowExW);
 
+	using namespace RecottePluginFoundation::Instruction;
+
 	// 話者レイヤー
 	{
 		auto target = RecottePluginFoundation::SearchAddress([](std::byte* address)
@@ -237,15 +239,15 @@ extern "C" __declspec(dllexport) void WINAPI OnPluginStart(HINSTANCE handle)
 
 			return true;
 		});
-		auto part3 = std::vector<unsigned char>
+		unsigned char part3[] =
 		{
-			0x48, 0x8B, 0xCF, // mov rcx, rdi
-			0x48, 0xB8, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // mov rax, 0FFFFFFFFFFFFFFFFh
-			0xFF, 0xD0, // call rax
-			0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, // nop x7
+			REX(true, false, false, false), 0x8B, ModRM(Reg32::c, Mode::reg, Reg32::di), // mov rcx, rdi
+			REX(true, false, false, false), 0xB8 + Reg32::a, DUMMY_ADDRESS, // mov rax, 0FFFFFFFFFFFFFFFFh
+			0xFF, ModRM(2, Mode::reg, Reg32::a), // call rax
+			NOP, NOP, NOP, NOP, NOP, NOP, NOP, // nop x7
 		};
-		*(void**)(part3.data() + 3 + 2) = &Hook_CalcLayerHeight;
-		RecottePluginFoundation::MemoryCopyAvoidingProtection(target, part3.data(), part3.size());
+		*(void**)&part3[3 + 2] = &Hook_CalcLayerHeight;
+		RecottePluginFoundation::MemoryCopyAvoidingProtection(target, part3, sizeof(part3));
 	}
 
 	// 注釈レイヤー
@@ -274,17 +276,17 @@ extern "C" __declspec(dllexport) void WINAPI OnPluginStart(HINSTANCE handle)
 
 			return true;
 		});
-		auto part3 = std::vector<unsigned char>
+		unsigned char part3[] =
 		{
 			// dmmx0 がセット済み（第一引数）
-			0x48, 0x8B, 0b11'010'011, // mov rdx, rbx （第二引数）
-			0x48, 0xB8, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // mov rax, 0FFFFFFFFFFFFFFFFh
-			0xFF, 0xD0, // call rax
-			0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, // nop
-			0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, // nop
+			REX(true, false, false, false), 0x8B, ModRM(Reg32::d, Mode::reg, Reg32::b), // mov rdx, rbx （第二引数）
+			REX(true, false, false, false), 0xB8 + Reg32::a, DUMMY_ADDRESS, // mov rax, 0FFFFFFFFFFFFFFFFh
+			0xFF, ModRM(2, Mode::reg, Reg32::a), // call rax
+			NOP, NOP, NOP, NOP, NOP, NOP, NOP, NOP, NOP, NOP, NOP, NOP, NOP, NOP, NOP, NOP,
+			NOP, NOP, NOP, NOP, NOP, NOP, NOP, NOP, NOP, NOP, NOP, NOP, NOP, NOP, NOP,
 		};
-		*(void**)(part3.data() + 3 + 2) = &Hook_CalcLayerHeight2;
-		RecottePluginFoundation::MemoryCopyAvoidingProtection(target, part3.data(), part3.size());
+		*(void**)&part3[3 + 2] = &Hook_CalcLayerHeight2;
+		RecottePluginFoundation::MemoryCopyAvoidingProtection(target, part3, sizeof(part3));
 	}
 
 	// 映像・音声レイヤー
@@ -302,7 +304,7 @@ extern "C" __declspec(dllexport) void WINAPI OnPluginStart(HINSTANCE handle)
 				address += part0.size();
 
 				address += 4; // (call) sub_7FF633A273B0
-				
+
 				static auto part1 = std::vector<unsigned char> // 19
 				{
 					0x90, // nop
@@ -313,56 +315,56 @@ extern "C" __declspec(dllexport) void WINAPI OnPluginStart(HINSTANCE handle)
 
 				return true;
 			});
-		auto part3 = std::vector<unsigned char>
+		unsigned char part3[] =
 		{
 			// dmmx0 がセット済み（第一引数）
-			0b0100'1'0'0'1 , 0x8B, 0b11'010'110, // mov rdx, r14（第二引数）REX(prefix, is64:t, shiftDst:f, shiftFactor:f, shiftSrc:t), mov, ModRM(mod:r, reg:rdx, rm:rsi/r14)
-			0x48, 0xB8, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // mov rax, 0FFFFFFFFFFFFFFFFh
-			0xFF, 0xD0, // call rax
-			0x90, 0x90, 0x90, // nop
+			REX(true, false, false, true), 0x8B, ModRM(Reg32::d, Mode::reg, RegEx::_14), // mov rdx, r14（第二引数）
+			REX(true, false, false, false), 0xB8 + Reg32::a, DUMMY_ADDRESS, // mov rax, 0FFFFFFFFFFFFFFFFh
+			0xFF, ModRM(2, Mode::reg, Reg32::a), // call rax
+			NOP, NOP, NOP,
 		};
-		*(void**)(part3.data() + 3 + 2) = &Hook_CalcLayerHeight3;
-		RecottePluginFoundation::MemoryCopyAvoidingProtection(target, part3.data(), part3.size());
+		*(void**)&part3[3 + 2] = &Hook_CalcLayerHeight3;
+		RecottePluginFoundation::MemoryCopyAvoidingProtection(target, part3, sizeof(part3));
 	}
 
 	// HitTest
 	{
 		auto target = RecottePluginFoundation::SearchAddress([](std::byte* address)
-		{
-			static unsigned char part0[] =
 			{
-				// function start
-				// .text:00007FF6AEBB9600             HitTest proc near        
-				0x48, 0x89, 0x5C, 0x24, 0x10, 				// mov [rsp+arg_8], rbx
-				0x48, 0x89, 0x6C, 0x24, 0x18, 				// mov [rsp+arg_10], rbp
-				0x48, 0x89, 0x74, 0x24, 0x20, 				// mov [rsp+arg_18], rsi
-				0x57,										// push    rdi
-				0x41, 0x56, 								// push    r14
-				0x41, 0x57,									// push    r15
-				0x48, 0x83, 0xEC, 0x50,						// sub     rsp, 50h
-				// start main proc
-				0x4C, 0x8B, 0xF1, 							// mov     r14, rcx
-				0x0F, 0x29, 0x74, 0x24, 0x40, 				// movaps  [rsp+68h+var_28], xmm6
-				0x48, 0x8B, 0x89, 0x68, 0x0C, 0x00, 0x00, 	// mov     rcx, [rcx+0C68h]
-				0x48, 0x8B, 0xEA, 							// mov     rbp, rdx
-				0x48, 0x8D, 0x54, 0x24, 0x70, 				// lea     rdx, [rsp+68h+timelineWidth]
-				0x0F, 0x29, 0x7C, 0x24, 0x30, 				// movaps  [rsp+68h+var_38], xmm7
-				0x48, 0x8B, 0x01, 							// mov     rax, [rcx]
-				0xFF, 0x90, 0xB0, 0x00, 0x00, 0x00, 		// call    qword ptr [rax+0B0h]
-				0x49, 0x8B, 0x86, 0xD0, 0x0A, 0x00, 0x00, 	// mov     rax, [r14+0AD0h]
-				0x48, 0x8B, 0x80, 0x90, 0x0B, 0x00, 0x00, 	// mov     rax, [rax+0B90h]
-				0x48, 0x63, 0x48, 0x38, 					// movsxd  rcx, dword ptr [rax+38h]
-				0x85, 0xC9, 								// test    ecx, ecx
-			};
-			if (0 != memcmp(address, part0, sizeof(part0))) return false;
-			address += sizeof(part0);
-			return true;
-		});
+				static unsigned char part0[] =
+				{
+					// function start
+					// .text:00007FF6AEBB9600             HitTest proc near        
+					0x48, 0x89, 0x5C, 0x24, 0x10, 				// mov [rsp+arg_8], rbx
+					0x48, 0x89, 0x6C, 0x24, 0x18, 				// mov [rsp+arg_10], rbp
+					0x48, 0x89, 0x74, 0x24, 0x20, 				// mov [rsp+arg_18], rsi
+					0x57,										// push    rdi
+					0x41, 0x56, 								// push    r14
+					0x41, 0x57,									// push    r15
+					0x48, 0x83, 0xEC, 0x50,						// sub     rsp, 50h
+					// start main proc
+					0x4C, 0x8B, 0xF1, 							// mov     r14, rcx
+					0x0F, 0x29, 0x74, 0x24, 0x40, 				// movaps  [rsp+68h+var_28], xmm6
+					0x48, 0x8B, 0x89, 0x68, 0x0C, 0x00, 0x00, 	// mov     rcx, [rcx+0C68h]
+					0x48, 0x8B, 0xEA, 							// mov     rbp, rdx
+					0x48, 0x8D, 0x54, 0x24, 0x70, 				// lea     rdx, [rsp+68h+timelineWidth]
+					0x0F, 0x29, 0x7C, 0x24, 0x30, 				// movaps  [rsp+68h+var_38], xmm7
+					0x48, 0x8B, 0x01, 							// mov     rax, [rcx]
+					0xFF, 0x90, 0xB0, 0x00, 0x00, 0x00, 		// call    qword ptr [rax+0B0h]
+					0x49, 0x8B, 0x86, 0xD0, 0x0A, 0x00, 0x00, 	// mov     rax, [r14+0AD0h]
+					0x48, 0x8B, 0x80, 0x90, 0x0B, 0x00, 0x00, 	// mov     rax, [rax+0B90h]
+					0x48, 0x63, 0x48, 0x38, 					// movsxd  rcx, dword ptr [rax+38h]
+					0x85, 0xC9, 								// test    ecx, ecx
+				};
+				if (0 != memcmp(address, part0, sizeof(part0))) return false;
+				address += sizeof(part0);
+				return true;
+			});
 		unsigned char part3[]
 		{
-			0b0100'1'0'0'0, 0xB8 + 0b000,  0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // mov rax, 0FFFFFFFFFFFFFFFFh
-			0xFF, 0b11'100'000, // jmp rax
-			0x90, 0x90, 0x90, // nop
+			REX(true, false, false, false), 0xB8 + Reg32::a, DUMMY_ADDRESS, // mov rax, 0FFFFFFFFFFFFFFFFh
+			0xFF, ModRM(4, Mode::reg, Reg32::a), // jmp rax
+			NOP, NOP, NOP,
 		};
 		*(void**)&part3[2] = &Hook_HitTest;
 		RecottePluginFoundation::MemoryCopyAvoidingProtection(target, part3, sizeof(part3));
@@ -371,54 +373,51 @@ extern "C" __declspec(dllexport) void WINAPI OnPluginStart(HINSTANCE handle)
 	// MessageDispacher（解析用）
 	{
 		auto target = RecottePluginFoundation::SearchAddress([](std::byte* address)
-		{
-			static auto part0 = std::vector<unsigned char>
 			{
-				// loc_7FF7836D0DD4:
-				0x48, 0x85, 0xDB,                   // test    rbx, rbx
-				0x75, 0x13,                         // jnz     short loc_7FF7836D0DEC
-				0x4C, 0x8B, 0xCE,                   // mov     r9, rsi                     ; lParam
-				0x4D, 0x8B, 0xC6,                   // mov     r8, r14                     ; wParam
-				0x8B, 0xD5,                         // mov     edx, ebp                    ; Msg
-				0x48, 0x8B, 0xCF,                   // mov     rcx, rdi                    ; hWnd
-				0xFF, 0x15, 0x76, 0x2B, 0x4E, 0x00, // call    cs:DefWindowProcW
-				0xEB, 0x32,                         // jmp     short loc_7FF7836D0E1E
-				// loc_7FF7836D0DEC:
-				0x48, 0x8B, 0x03,                   // mov     rax, [rbx]
-				0x48, 0x8D, 0x4C, 0x24, 0x30,       // lea     rcx, [rsp+68h+var_38]
-				0x48, 0x89, 0x4C, 0x24, 0x28,       // mov     [rsp+68h+var_40], rcx
-				0x4D, 0x8B, 0xCE,                   // mov     r9, r14
-				0x48, 0x8B, 0xCB,                   // mov     rcx, rbx
-				0x48, 0xC7, 0x44, 0x24, 0x30, 0x00, 0x00, 0x00, 0x00, // mov     [rsp+68h+var_38], 0
-				0x44, 0x8B, 0xC5,                   // mov     r8d, ebp
-				0x48, 0x89, 0x74, 0x24, 0x20,       // mov     [rsp+68h+var_48], rsi
-				0x48, 0x8B, 0xD7,                   // mov     rdx, rdi
-				0xFF, 0x90, 0xF8, 0x01, 0x00, 0x00, // call    qword ptr [rax+1F8h]
-				0x48, 0x8B, 0x44, 0x24, 0x30,       // mov     rax, [rsp+68h+var_38]
-			};
-			if (0 != memcmp(address, part0.data(), part0.size())) return false;
-			address += part0.size();
+				static unsigned char part0[] =
+				{
+					// loc_7FF7836D0DD4:
+					0x48, 0x85, 0xDB,                   // test    rbx, rbx
+					0x75, 0x13,                         // jnz     short loc_7FF7836D0DEC
+					0x4C, 0x8B, 0xCE,                   // mov     r9, rsi                     ; lParam
+					0x4D, 0x8B, 0xC6,                   // mov     r8, r14                     ; wParam
+					0x8B, 0xD5,                         // mov     edx, ebp                    ; Msg
+					0x48, 0x8B, 0xCF,                   // mov     rcx, rdi                    ; hWnd
+					0xFF, 0x15, 0x76, 0x2B, 0x4E, 0x00, // call    cs:DefWindowProcW
+					0xEB, 0x32,                         // jmp     short loc_7FF7836D0E1E
+					// loc_7FF7836D0DEC:
+					0x48, 0x8B, 0x03,                   // mov     rax, [rbx]
+					0x48, 0x8D, 0x4C, 0x24, 0x30,       // lea     rcx, [rsp+68h+var_38]
+					0x48, 0x89, 0x4C, 0x24, 0x28,       // mov     [rsp+68h+var_40], rcx
+					0x4D, 0x8B, 0xCE,                   // mov     r9, r14
+					0x48, 0x8B, 0xCB,                   // mov     rcx, rbx
+					0x48, 0xC7, 0x44, 0x24, 0x30, 0x00, 0x00, 0x00, 0x00, // mov     [rsp+68h+var_38], 0
+					0x44, 0x8B, 0xC5,                   // mov     r8d, ebp
+					0x48, 0x89, 0x74, 0x24, 0x20,       // mov     [rsp+68h+var_48], rsi
+					0x48, 0x8B, 0xD7,                   // mov     rdx, rdi
+					0xFF, 0x90, 0xF8, 0x01, 0x00, 0x00, // call    qword ptr [rax+1F8h]
+					0x48, 0x8B, 0x44, 0x24, 0x30,       // mov     rax, [rsp+68h+var_38]
+				};
+				if (0 != memcmp(address, part0, sizeof(part0))) return false;
+				address += sizeof(part0);
 
-			return true;
-		});
-		auto part3 = std::vector<unsigned char> // 74
+				return true;
+			});
+		unsigned char part3[] =
 		{
-			0x4C, 0x8B, 0xCE, // mov r9, rsi; lParam
-			0x4D, 0x8B, 0xC6, // mov r8, r14; wParam
-			0x8B, 0xD5, // mov edx, ebp; Msg
-			0x48, 0x8B, 0xCF, // mov rcx, rdi; hWnd
-			0x48, 0xB8, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // mov rax, 0FFFFFFFFFFFFFFFFh
-			0xFF, 0xD0, // call rax
-			// 23
-			0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, // nop
-			0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, // nop
-			0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, // nop
-			0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, // nop
-			0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, // nop
-			0x90, 0x90, 0x90, 0x90, // nop
+			REX(true, true, false, false), 0x8B, ModRM(RegEx::_9, Mode::reg, Reg32::si), // mov r9, rsi; lParam
+			REX(true, true, false, true), 0x8B, ModRM(RegEx::_8, Mode::reg, RegEx::_14), // mov r8, r14; wParam
+			0x8B, ModRM(Reg32::d, Mode::reg, Reg32::bp), // mov edx, ebp; Msg
+			REX(true, false, false, false), 0x8B, ModRM(Reg32::c, Mode::reg, Reg32::di), // mov rcx, rdi; hWnd
+			REX(true, false, false, false), 0xB8 + Reg32::a, DUMMY_ADDRESS, // mov rax, 0FFFFFFFFFFFFFFFFh
+			0xFF, ModRM(2, Mode::reg, Reg32::a), // call rax
+			NOP, NOP, NOP, NOP, NOP, NOP, NOP, NOP, NOP, NOP, NOP, NOP, NOP, NOP, NOP, NOP,
+			NOP, NOP, NOP, NOP, NOP, NOP, NOP, NOP, NOP, NOP, NOP, NOP, NOP, NOP, NOP, NOP,
+			NOP, NOP, NOP, NOP, NOP, NOP, NOP, NOP, NOP, NOP, NOP, NOP, NOP, NOP, NOP, NOP,
+			NOP, NOP, NOP,
 		};
-		*(void**)(part3.data() + 3 + 3 + 2 + 3 + 2) = &Hook_Dispatch;
-		RecottePluginFoundation::MemoryCopyAvoidingProtection(target, part3.data(), part3.size());
+		*(void**)&part3[3 + 3 + 2 + 3 + 2] = &Hook_Dispatch;
+		RecottePluginFoundation::MemoryCopyAvoidingProtection(target, part3, sizeof(part3));
 	}
 }
 

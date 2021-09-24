@@ -61,6 +61,71 @@ namespace RecottePluginFoundation
 		return (TDelegate)Intenal::OverrideIATFunction(moduleName, functionName, newFunction);
 	}
 
+	namespace Instruction
+	{
+		enum class Mode : std::uint8_t { mem, mem_disp8, mem_disp32, reg, };
+		enum class Reg32 : std::uint8_t { a, c, d, b, sp, bp, si, di, };
+		enum class RegEx : std::uint8_t { _8, _9, _10, _11, _12, _13, _14, _15, };
+		enum class RegXmm : std::uint8_t { _0, _1, _2, _3, _4, _5, _6, _7, };
+		enum class Sp : std::uint8_t { sib = 0b100, ip = 0b101, };
+		struct Reg
+		{
+			std::uint8_t raw;
+			constexpr Reg(Reg32 _32) { raw = (std::uint8_t)_32; };
+			constexpr Reg(RegEx _ex) { raw = (std::uint8_t)_ex; };
+			constexpr Reg(RegXmm _xmm) { raw = (std::uint8_t)_xmm; };
+			constexpr Reg(std::uint8_t opeCodeEx) { raw = opeCodeEx; };
+		};
+		struct RegMem
+		{
+			std::uint8_t raw;
+			constexpr RegMem(Reg32 _32) { raw = (std::uint8_t)_32; };
+			constexpr RegMem(RegEx _ex) { raw = (std::uint8_t)_ex; };
+			constexpr RegMem(RegXmm _xmm) { raw = (std::uint8_t)_xmm; };
+			constexpr RegMem(Sp sp) { raw = (std::uint8_t)sp; }
+		};
+		constexpr unsigned char operator+(unsigned char _byte, Reg32 _32) { return _byte + (unsigned char)_32; }
+		constexpr unsigned char operator+(unsigned char _byte, RegEx _ex) { return _byte + (unsigned char)_ex; }
+		constexpr unsigned char operator+(unsigned char _byte, RegXmm _xmm) { return _byte + (unsigned char)_xmm; }
+		constexpr unsigned char operator+(unsigned char _byte, Reg reg) { return _byte + (unsigned char)reg.raw; }
+
+		// https://www.wdic.org/w/SCI/REXプリフィックス
+		constexpr unsigned char REX(bool mode64, bool shiftReg, bool shiftSibIndex, bool shiftRM)
+		{
+			unsigned char rex = 0;
+			rex |= 0b0100 << 4;
+			rex |= (mode64 ? 1 : 0) << 3;
+			rex |= (shiftReg ? 1 : 0) << 2;
+			rex |= (shiftSibIndex ? 1 : 0) << 1;
+			rex |= (shiftRM ? 1 : 0) << 0;
+			return rex;
+		};
+
+		// https://www.wdic.org/w/SCI/ModR/M
+		constexpr unsigned char ModRM(Reg reg, Mode mod, RegMem regMem)
+		{
+			unsigned char modRM = 0;
+			modRM |= (unsigned char)mod << 6;
+			modRM |= (unsigned char)reg.raw << 3;
+			modRM |= (unsigned char)regMem.raw << 0;
+			return modRM;
+		}
+
+		// https://www.wdic.org/w/SCI/SIBバイト
+		constexpr unsigned char SIB(Reg base, Reg index, std::uint8_t scale)
+		{
+			unsigned char sib = 0;
+			sib |= scale << 6;
+			sib |= (unsigned char)index.raw << 3;
+			sib |= (unsigned char)base.raw << 0;
+			return sib;
+		}
+
+		const unsigned char NOP = 0x90;
+
+		#define DUMMY_ADDRESS 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC
+	}
+
 
 	// Instruction code utilities
 
