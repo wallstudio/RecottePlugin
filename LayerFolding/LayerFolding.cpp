@@ -9,6 +9,7 @@
 #include <float.h>
 #include <cinttypes>
 #include "../HookHelper/HookHelper.h"
+#include "RecotteObject.h"
 
 
 decltype(&CreateWindowExW) g_Original_CreateWindowExW;
@@ -16,42 +17,6 @@ HWND TimelineWindow = nullptr;
 HWND TimelineWidnowLabels = nullptr;
 HWND TimelineMainWidnow = nullptr;
 
-union LayerObj
-{
-	union Unknown
-	{
-		RecottePluginFoundation::Member<float(*)(), 0x60> getConstantMinHeight;
-	};
-	RecottePluginFoundation::Member<Unknown*, 0> unknown;
-
-	union Window
-	{
-		RecottePluginFoundation::Member<HWND, 0x780> hwnd;
-	};
-	RecottePluginFoundation::Member<Window*, 0xE8> window;
-
-	union Object
-	{
-		union RectInfo
-		{
-			RecottePluginFoundation::Member<double (*)(Object*), 184> getMin;
-			RecottePluginFoundation::Member<double (*)(Object*), 200> getMax;
-		};
-		RecottePluginFoundation::Member<RectInfo*, 0> rectInfo;
-		RecottePluginFoundation::Member<LayerObj*, 296> layerInfo;
-		RecottePluginFoundation::Member<float, 784> y;
-		RecottePluginFoundation::Member<float, 792> h;
-	};
-	RecottePluginFoundation::Member<Object**, 0x130> objects;
-
-	RecottePluginFoundation::Member<std::int32_t, 0x138> objectCount;
-
-	RecottePluginFoundation::Member<float, 0x160> layerHeight;
-
-	RecottePluginFoundation::Member<bool, 0x379> invalid;
-
-	RecottePluginFoundation::Member<float, 892> leyerMinY;
-};
 
 struct TimelineLabelItemExSetting
 {
@@ -172,8 +137,6 @@ void Hook_CalcLayerHeight(LayerObj* layerObj) { Hook_CalcLayerHeight2(-FLT_MAX, 
 void Hook_CalcLayerHeight3(float xmm0, LayerObj* layerObj) { Hook_CalcLayerHeight2(xmm0, layerObj); }
 
 
-struct Vector2 { float x; float y; };
-struct Rect { float x; float y; float w; float h; };
 LayerObj::Object* Hook_HitTest(size_t a1, Vector2* click)
 {
 	if (forceHitTestPass != nullptr
@@ -182,25 +145,11 @@ LayerObj::Object* Hook_HitTest(size_t a1, Vector2* click)
 		return forceHitTestPass->objects.get()[0];
 	}
 
-	union Timeline
-	{
-		union Rect
-		{
-			RecottePluginFoundation::Member<void (*)(Timeline*, Vector2*), 176> getSize;
-		};
-		RecottePluginFoundation::Member<Rect*, 0> rect;
-	};
 	auto timeline = *(Timeline**)(a1 + 3176);
 	Vector2 timelineSize;
 	timeline->rect->getSize.get()(timeline, &timelineSize);
 	
 	LayerObj* layer = nullptr;
-	union LayerList
-	{
-		RecottePluginFoundation::Member<LayerObj**, 48> leyers;
-		RecottePluginFoundation::Member<std::int32_t, 56> leyerCount;
-		RecottePluginFoundation::Member<double, 1864> scale;
-	};
 	LayerList* layerList = (LayerList*) *(size_t*)(*(size_t*)(a1 + 2768) + 2960);
 	if ( layerList->leyerCount.get() <= 0 ) return nullptr;
 	for (int i = layerList->leyerCount.get() - 1; i >= 0; i--)

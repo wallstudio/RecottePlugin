@@ -163,6 +163,9 @@
   <ItemGroup>
     <ClCompile Include="LayerFolding.cpp" />
   </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="RecotteObject.h" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets" />
 </Project>
