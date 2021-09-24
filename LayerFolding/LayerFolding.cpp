@@ -148,24 +148,24 @@ HWND _CreateWindowExW(DWORD dwExStyle, LPCWSTR lpClassName, LPCWSTR lpWindowName
 void Hook_CalcLayerHeight2(float xmm0, LayerObj* layerObj)
 {
 	if (layerObj == nullptr
-		|| layerObj->window.value == nullptr 
-		|| layerObj->window.value->hwnd.value == nullptr
-		|| !TimelineWidnowLabelsItems.contains(layerObj->window.value->hwnd.value))
+		|| layerObj->window.get() == nullptr 
+		|| layerObj->window->hwnd.get() == nullptr
+		|| !TimelineWidnowLabelsItems.contains(layerObj->window->hwnd.get()))
 	{
 		return; // RSPの読み込みタイミングによって、CreateWindowより先に来ることがあるっぽい
 	}
 
-	if (layerObj->layerHeight.value < xmm0)
+	if (layerObj->layerHeight.get() < xmm0)
 	{
-		layerObj->layerHeight.value = layerObj->unknown.value->getConstantMinHeight.value();
+		layerObj->layerHeight = layerObj->unknown->getConstantMinHeight.get()();
 	}
 
-	auto additionalSetting = TimelineWidnowLabelsItems[layerObj->window.value->hwnd.value];
+	auto additionalSetting = TimelineWidnowLabelsItems[layerObj->window->hwnd.get()];
 	additionalSetting->data = layerObj;
 	if (additionalSetting->Folding)
 	{
-		layerObj->layerHeight.value = 68.0f; // デフォルトの最小値
-		UpdateWindow(layerObj->window.value->hwnd.value);
+		layerObj->layerHeight = 68.0f; // デフォルトの最小値
+		UpdateWindow(layerObj->window->hwnd.get());
 	}
 }
 void Hook_CalcLayerHeight(LayerObj* layerObj) { Hook_CalcLayerHeight2(-FLT_MAX, layerObj); }
@@ -177,9 +177,9 @@ struct Rect { float x; float y; float w; float h; };
 LayerObj::Object* Hook_HitTest(size_t a1, Vector2* click)
 {
 	if (forceHitTestPass != nullptr
-		&& forceHitTestPass->objectCount.value > 0)
+		&& forceHitTestPass->objectCount.get() > 0)
 	{
-		return forceHitTestPass->objects.value[0];
+		return forceHitTestPass->objects.get()[0];
 	}
 
 	union Timeline
@@ -192,7 +192,7 @@ LayerObj::Object* Hook_HitTest(size_t a1, Vector2* click)
 	};
 	auto timeline = *(Timeline**)(a1 + 3176);
 	Vector2 timelineSize;
-	timeline->rect.value->getSize.value(timeline, &timelineSize);
+	timeline->rect->getSize.get()(timeline, &timelineSize);
 	
 	LayerObj* layer = nullptr;
 	union LayerList
@@ -202,29 +202,29 @@ LayerObj::Object* Hook_HitTest(size_t a1, Vector2* click)
 		RecottePluginFoundation::Member<double, 1864> scale;
 	};
 	LayerList* layerList = (LayerList*) *(size_t*)(*(size_t*)(a1 + 2768) + 2960);
-	if ( layerList->leyerCount.value <= 0 ) return nullptr;
-	for (int i = layerList->leyerCount.value - 1; i >= 0; i--)
+	if ( layerList->leyerCount.get() <= 0 ) return nullptr;
+	for (int i = layerList->leyerCount.get() - 1; i >= 0; i--)
 	{
-		layer = layerList->leyers.value[i];
-		if (layer->invalid.value) continue;
-		if ( click->y < layer->leyerMinY.value || (layer->leyerMinY.value + layer->layerHeight.value) < click->y ) continue;
+		layer = layerList->leyers.get()[i];
+		if (layer->invalid.get()) continue;
+		if ( click->y < layer->leyerMinY.get() || (layer->leyerMinY.get() + layer->layerHeight.get()) < click->y ) continue;
 		break;
 	}
 	if (layer == nullptr) return nullptr;
 
-	auto scale = layerList->scale.value;
+	auto scale = layerList->scale.get();
 	auto offset = (double)*(std::int32_t*)(*(size_t*)(a1 + 3200) + 2640);
-	for(int i = layer->objectCount.value - 1; i >= 0; i--) // 線形探索的な
+	for(int i = layer->objectCount.get() - 1; i >= 0; i--) // 線形探索的な
 	{
-		auto target = layer->objects.value[i];
-		auto minX = target->rectInfo.value->getMin.value(target) * scale - offset;
-    	auto maxX = target->rectInfo.value->getMax.value(target) * scale - offset;
+		auto target = layer->objects.get()[i];
+		auto minX = target->rectInfo->getMin.get()(target) * scale - offset;
+    	auto maxX = target->rectInfo->getMax.get()(target) * scale - offset;
 		if ( maxX < 0.0 || timelineSize.x < minX) continue; // オブジェクトが画面内かチェック
 		
-		auto x = target->rectInfo.value->getMin.value(target) * scale - offset;
-		auto w = target->rectInfo.value->getMax.value(target) * scale - offset - x;
-		auto y = target->y.value + target->layerInfo.value->leyerMinY.value;
-		auto h = target->h.value;
+		auto x = target->rectInfo->getMin.get()(target) * scale - offset;
+		auto w = target->rectInfo->getMax.get()(target) * scale - offset - x;
+		auto y = target->y.get() + target->layerInfo->leyerMinY.get();
+		auto h = target->h.get();
 		if ( click->x < x || (x + w) < click->x ) continue; // HitTest X
 		if ( click->y < y || (y + h) < click->y ) continue; // HitTest Y
 

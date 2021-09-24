@@ -149,14 +149,22 @@ namespace RecottePluginFoundation
 	{
 	private:
 		std::byte dummy[_Offset];
-	public:
 		_TValue value;
+	public:
+		const _TValue& get() { return value; }
+		const _TValue& operator ->() { return value; }
+		_TValue operator =(_TValue v) { return (value = v); }
+
 	};
 
 	template<typename _TValue>
 	class Member<_TValue, 0>
 	{
-	public:
 		_TValue value;
+	public:
+		const _TValue& get() { return value; }
+		const _TValue& operator ->() { return value; }
+		_TValue operator =(_TValue v) { return (value = v); }
+
 	};
 }
