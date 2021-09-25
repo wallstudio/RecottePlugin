@@ -7,6 +7,14 @@
 #include <filesystem>
 #include <format>
 
+#if !defined(HOOK_HELPER) && !defined(RECOTTEPLUGINFOUNDATION_EXPORTS)
+#ifdef _DEBUG
+#pragma comment(lib, "../x64/Debug/HookHelper.lib")
+#else
+#pragma comment(lib, "../x64/Release/HookHelper.lib")
+#endif
+#endif
+
 
 namespace RecottePluginFoundation
 {
