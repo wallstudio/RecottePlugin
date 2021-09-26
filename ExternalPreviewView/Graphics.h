@@ -18,7 +18,7 @@ using ComPtr = Microsoft::WRL::ComPtr<T>;
 class Graphics
 {
     // https://github.com/walbourn/directx-sdk-samples/tree/master/Direct3D11Tutorials
-    HWND hWnd = nullptr;
+    HWND hwnd;
     ComPtr<IDXGIFactory2> factory;
     ComPtr<IDXGIAdapter> adapter;
     ComPtr<ID3D11Device> device;
@@ -36,7 +36,7 @@ class Graphics
     }
 
 public:
-    inline Graphics(HWND hwnd)
+    inline Graphics(HWND hwnd) : hwnd(hwnd)
     {
 #if _DEBUG
         ComPtr<ID3D12Debug> debug;
@@ -83,5 +83,22 @@ public:
 
     inline void Resize(int width, int height) {} // TODO:
 
-    inline void Render() {}
+    inline void Render()
+    {
+        RECT windowRect;
+        GetClientRect(hwnd, &windowRect);
+        D3D11_VIEWPORT viewPort = {
+            .TopLeftX = 0,
+            .TopLeftY = 0,
+            .Width = (FLOAT)(windowRect.right - windowRect.left),
+            .Height = (FLOAT)(windowRect.bottom - windowRect.top),
+            .MinDepth = 0,
+            .MaxDepth = 1,
+        };
+        context->RSSetViewports(1, &viewPort);
+
+        FLOAT clearColor[] = { 0.0f, 1.0f, 0.0f, 1.0f };
+        context->ClearRenderTargetView(rtView.Get(), clearColor);
+        swapchain->Present(0, 0);
+    }
 };
