@@ -33,6 +33,11 @@ LRESULT MessageHandler(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 graphics->Resize(LOWORD(lParam), HIWORD(lParam));
             }
         }
+        else if (message == WM_TIMER)
+        {
+            RedrawWindow(hWnd, nullptr, nullptr, RDW_INTERNALPAINT);
+            return 0;
+        }
         else if (message == WM_PAINT)
         {
             auto graphics = (Graphics*)GetWindowLongPtr(hWnd, GWLP_USERDATA);

@@ -4,6 +4,7 @@
 #include <comdef.h>
 #include <string>
 #include <functional>
+#include <chrono>
 #include <wrl/client.h>
 #include <d3d11_4.h>
 #include <d3d12.h>
@@ -79,6 +80,8 @@ public:
         ComPtr<ID3D11Texture2D> swapchainBuffer;
         ThrowIfError(swapchain->GetBuffer(0, IID_PPV_ARGS(&swapchainBuffer)));
         ThrowIfError(device->CreateRenderTargetView(swapchainBuffer.Get(), nullptr, &rtView));
+
+        SetTimer(hwnd, 334, 1000 * 1 / 60, nullptr);
     }
 
     inline void Resize(int width, int height) {} // TODO:
@@ -97,7 +100,8 @@ public:
         };
         context->RSSetViewports(1, &viewPort);
 
-        FLOAT clearColor[] = { 0.0f, 1.0f, 0.0f, 1.0f };
+        auto now = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+        FLOAT clearColor[] = { 0.0f, now % 1000 / 1000.0f, 0.0f, 1.0f };
         context->ClearRenderTargetView(rtView.Get(), clearColor);
         swapchain->Present(0, 0);
     }
