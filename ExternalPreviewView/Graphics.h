@@ -2,19 +2,24 @@
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
 #include <comdef.h>
+#include <rpc.h>
 #include <string>
+#include <set>
 #include <functional>
 #include <chrono>
 #include <wrl/client.h>
 #include <d3d11_4.h>
 #include <d3d12.h>
 #include <dxgi1_6.h>
+#include <D3Dcommon.h>
 #pragma comment(lib, "d3d11.lib")
 #pragma comment(lib, "d3d12.lib")
 #pragma comment(lib, "dxgi.lib")
 
 template<typename T>
 using ComPtr = Microsoft::WRL::ComPtr<T>;
+
+DEFINE_GUID(PLUGIN_DX_RESOURCE, );
 
 class Graphics
 {
@@ -38,6 +43,9 @@ class Graphics
     }
 
 public:
+    static inline std::set<ComPtr<ID3D11Texture2D>> capturedTextures;
+    static inline GUID GetPluginDxObjectDataGUID() { return { 0x09343630L, 0xaf9f, 0x11d0, { 0x92, 0x9f, 0x00, 0xc0, 0x4f, 0xc3, 0x40, 0xb1 } }; };
+
     inline Graphics(HWND hwnd) : hwnd(hwnd)
     {
 #if _DEBUG
@@ -80,6 +88,9 @@ public:
 
         ComPtr<ID3D11Texture2D> swapchainBuffer;
         ThrowIfError(swapchain->GetBuffer(0, IID_PPV_ARGS(&swapchainBuffer)));
+        //auto data = true;
+        //ThrowIfError(swapchainBuffer->SetPrivateData(GetPluginDxObjectDataGUID(), sizeof(data), &data));
+
         ThrowIfError(device->CreateRenderTargetView(swapchainBuffer.Get(), nullptr, &rtView));
 
         SetTimer(hwnd, 334, 1000 * 1 / 60, nullptr);
@@ -110,6 +121,15 @@ public:
         auto now = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
         FLOAT clearColor[] = { 0.0f, now % 1000 / 1000.0f, 0.0f, 1.0f };
         context->ClearRenderTargetView(rtView.Get(), clearColor);
+
+        for (auto& texture : capturedTextures)
+        {
+            // TODO: 参照数1のもの（Pluginで握ってるだけの）は除外する
+            // https://docs.microsoft.com/ja-jp/windows/win32/api/unknwn/nf-unknwn-iunknown-release#return-value
+            D3D11_TEXTURE2D_DESC desc;
+            texture->GetDesc(&desc);
+            OutputDebugStringW(std::format(L"{}x{} {}\n", desc.Width, desc.Height, (int)desc.Format).c_str());
+        }
 
         swapchain->Present(0, 0);
     }

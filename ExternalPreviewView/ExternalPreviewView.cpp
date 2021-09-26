@@ -114,6 +114,8 @@ extern "C" __declspec(dllexport) void WINAPI OnPluginStart(HINSTANCE handle)
     Original_D3D11CreateDevice = RecottePluginFoundation::OverrideIATFunction<decltype(&D3D11CreateDevice)>("d3d11.dll", "D3D11CreateDevice",
         [](IDXGIAdapter* pAdapter, D3D_DRIVER_TYPE DriverType, HMODULE Software, UINT Flags, const D3D_FEATURE_LEVEL* pFeatureLevels, UINT FeatureLevels, UINT SDKVersion, ID3D11Device** ppDevice, D3D_FEATURE_LEVEL* pFeatureLevel, ID3D11DeviceContext** ppImmediateContext)
         {
+            using Microsoft::WRL::ComPtr;
+
             auto hr = Original_D3D11CreateDevice(pAdapter, DriverType, Software, Flags, pFeatureLevels, FeatureLevels, SDKVersion, ppDevice, pFeatureLevel, ppImmediateContext);
 
             auto vTable = *(CreateRenderTargetView**)(*ppDevice);
@@ -122,16 +124,24 @@ extern "C" __declspec(dllexport) void WINAPI OnPluginStart(HINSTANCE handle)
             originalCreateRenderTargetView = vTable[3 + 6];
             vTable[3 + 6] = [](ID3D11Device* device, ID3D11Resource* pResource, const D3D11_RENDER_TARGET_VIEW_DESC* pDesc, ID3D11RenderTargetView** ppRTView)
             {
-                D3D11_RESOURCE_DIMENSION desc;
-                pResource->GetType(&desc);
                 auto hr = originalCreateRenderTargetView(device, pResource, pDesc, ppRTView);
+
+                ComPtr<ID3D11Texture2D> texture;
+                if (!SUCCEEDED(pResource->QueryInterface(IID_PPV_ARGS(&texture)))) return hr;
+
+                //bool isPluginData = false;
+                //UINT dataSize = 0;
+                //if(SUCCEEDED(pResource->GetPrivateData(Graphics::GetPluginDxObjectDataGUID(), &dataSize, &isPluginData))) return hr;
+                //if (isPluginData) return hr;
+
+                Graphics::capturedTextures.insert(texture);
                 return hr;
             };
             return hr;
         });
 
-    //auto hwnd = InitWindow(handle);
-    //PostMessageW(hwnd, WM_INITIALIZE_GRAPHICS, 0, 0); // DllMainでDX系APIが使えないので遅延させる
+    auto hwnd = InitWindow(handle);
+    PostMessageW(hwnd, WM_INITIALIZE_GRAPHICS, 0, 0); // DllMainでDX系APIが使えないので遅延させる
 }
 
 extern "C" __declspec(dllexport) void WINAPI OnPluginFinish(HINSTANCE haneld) {}
