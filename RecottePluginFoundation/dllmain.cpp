@@ -55,13 +55,22 @@ void OnAttach()
 	}
 	catch (std::wstring& e)
 	{
+#if !defined(NDEBUG)
+		// Debug/Releaseでレイアウトが変わるっぽい
+		MessageBoxW(nullptr, *((wchar_t**)&e + 1), L"RecottePlugin", MB_ICONERROR);
+#else
 		MessageBoxW(nullptr, e.c_str(), L"RecottePlugin", MB_ICONERROR);
-		throw;
+#endif
+		exit(-1145141919);
 	}
 	catch (std::exception& e)
 	{
+#if !defined(NDEBUG)
+		MessageBoxA(nullptr, *((char**)&e + 1), "RecottePlugin", MB_ICONERROR);
+#else
 		MessageBoxA(nullptr, e.what(), "RecottePlugin", MB_ICONERROR);
-		throw;
+#endif
+		exit(-1145141919);
 	}
 }
 
