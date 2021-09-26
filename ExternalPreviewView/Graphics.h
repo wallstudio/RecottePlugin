@@ -84,6 +84,12 @@ public:
         SetTimer(hwnd, 334, 1000 * 1 / 60, nullptr);
     }
 
+    inline ~Graphics()
+    {
+        context->ClearState();
+        context->Flush();
+    }
+
     inline void Resize(int width, int height) {} // TODO:
 
     inline void Render()
@@ -103,6 +109,7 @@ public:
         auto now = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
         FLOAT clearColor[] = { 0.0f, now % 1000 / 1000.0f, 0.0f, 1.0f };
         context->ClearRenderTargetView(rtView.Get(), clearColor);
+
         swapchain->Present(0, 0);
     }
 };
