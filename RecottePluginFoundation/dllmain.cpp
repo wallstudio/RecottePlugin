@@ -40,7 +40,9 @@ void OnAttach()
 		{
 			alertMessage += std::format(L"\r\n{}", pluginFile.wstring());
 		}
+#if NODEBUG
 		MessageBoxW(nullptr, alertMessage.c_str(), L"RecottePluginLoader", MB_OK);
+#endif
 
 		for (auto& pluginFile : pluginFiles)
 		{

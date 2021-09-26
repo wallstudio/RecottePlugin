@@ -1,12 +1,72 @@
 ﻿#define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
+#include <comdef.h>
 #include "../HookHelper/HookHelper.h"
+#include "Graphics.h"
 
 
-HWND window;
+const UINT WM_INITIALIZE_GRAPHICS = WM_USER + 334;
+LRESULT MessageHandler(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
+{
+    std::function<void(HWND)> deleter = [](HWND h)
+    {
+        auto graphics = (Graphics*)GetWindowLongPtr(h, 0);
+        if (graphics != nullptr)
+        {
+            delete graphics;
+            SetWindowLongPtr(h, GWLP_USERDATA, (LONG_PTR)nullptr);
+        }
+    };
 
+    try
+    {
+        if (message == WM_INITIALIZE_GRAPHICS)
+        {
+            auto graphics = new Graphics(hWnd);
+            SetWindowLongPtr(hWnd, GWLP_USERDATA, (LONG_PTR)graphics);
+        }
+        else if (message == WM_SIZE)
+        {
+            auto graphics = (Graphics*)GetWindowLongPtr(hWnd, GWLP_USERDATA);
+            if (graphics != nullptr)
+            {
+                graphics->Resize(LOWORD(lParam), HIWORD(lParam));
+            }
+        }
+        else if (message == WM_PAINT)
+        {
+            auto graphics = (Graphics*)GetWindowLongPtr(hWnd, GWLP_USERDATA);
+            if (graphics != nullptr)
+            {
+                graphics->Render();
+                return 0;
+            }
+        }
+        else if (message == WM_DESTROY)
+        {
+            deleter(hWnd);
+            PostQuitMessage(0);
+            return 0;
+        }
+    }
+    catch (std::wstring& e)
+    {
+        deleter(hWnd);
+        MessageBoxW(nullptr, e.c_str(), L"RecottePlugin", MB_ICONERROR);
+        PostQuitMessage(0);
+        return 0;
+    }
+    catch (std::exception& e)
+    {
+        deleter(hWnd);
+        MessageBoxA(nullptr, e.what(), "RecottePlugin", MB_ICONERROR);
+        PostQuitMessage(0);
+        return 0;
+    }
+    return DefWindowProc(hWnd, message, wParam, lParam);
+}
 
-void InitWindow(HINSTANCE hInstance)
+HWND InitWindow(HINSTANCE hInstance)
 {
     // Register class
     WNDCLASSEX wcex;
@@ -21,67 +81,26 @@ void InitWindow(HINSTANCE hInstance)
     wcex.lpszMenuName = nullptr;
     wcex.lpszClassName = L"ExternalPreviewWindow";
     wcex.hIconSm = LoadIcon(wcex.hInstance, (LPCTSTR)IDI_APPLICATION);
-    wcex.lpfnWndProc = [](HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) -> LRESULT
-    {
-        if (message == WM_PAINT)
-        {
-            PAINTSTRUCT ps;
-            HDC hdc;
-            hdc = BeginPaint(hWnd, &ps);
-            EndPaint(hWnd, &ps);
-            return 0;
-        }
-        else if (message == WM_DESTROY)
-        {
-            PostQuitMessage(0);
-            return 0;
-        }
-        else
-        {
-            return DefWindowProc(hWnd, message, wParam, lParam);
-        }
-    };
+    wcex.lpfnWndProc = MessageHandler;
     if (!RegisterClassEx(&wcex)) throw std::wstring(L"fail register");
 
     // Create window
     RECT rc = { 0, 0, 800, 600 };
     AdjustWindowRect(&rc, WS_OVERLAPPEDWINDOW, FALSE);
-    window = CreateWindow(L"ExternalPreviewWindow", L"RecottePlugin",
-        WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX,
+    auto hwnd = CreateWindow(L"ExternalPreviewWindow", L"RecottePlugin",
+        WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_SIZEBOX,
         CW_USEDEFAULT, CW_USEDEFAULT, rc.right - rc.left, rc.bottom - rc.top, nullptr, nullptr, hInstance,
         nullptr);
-    if (!window) throw std::wstring(L"fail create window");
+    if (!hwnd) throw std::wstring(L"fail create window");
 
-    ShowWindow(window, SW_SHOW);
-}
-
-void Render()
-{
-
-}
-
-void MessageLoop()
-{
-    MSG msg = { 0 };
-    while (WM_QUIT != msg.message)
-    {
-        if (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
-        {
-            TranslateMessage(&msg);
-            DispatchMessage(&msg);
-        }
-        else
-        {
-            Render();
-        }
-    }
+    ShowWindow(hwnd, SW_SHOW);
+    return hwnd;
 }
 
 extern "C" __declspec(dllexport) void WINAPI OnPluginStart(HINSTANCE handle)
 {
-    InitWindow(handle);
-    MessageLoop();
-    exit(0);
+    auto hwnd = InitWindow(handle);
+    PostMessageW(hwnd, WM_INITIALIZE_GRAPHICS, 0, 0); // DllMainでDX系APIが使えないので遅延させる
 }
 
 extern "C" __declspec(dllexport) void WINAPI OnPluginFinish(HINSTANCE haneld) {}
