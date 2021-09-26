@@ -34,6 +34,7 @@ class Graphics
             auto msg = _com_error(hr).ErrorMessage();
             throw std::wstring(msg);
         }
+        return hr;
     }
 
 public:
