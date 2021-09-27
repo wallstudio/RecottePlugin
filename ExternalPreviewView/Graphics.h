@@ -56,7 +56,7 @@ class Graphics
         if (hr != S_OK)
         {
             auto msg = _com_error(hr).ErrorMessage();
-            throw std::wstring(msg);
+            throw std::format(L"{}\n0x{:08x}", msg, hr);
         }
         return hr;
     }
@@ -257,7 +257,11 @@ public:
         context->PSSetShader(ps.Get(), nullptr, 0);
         context->Draw(6, 0);
 
-        ThrowIfError(swapchain->Present(0, 0));
+        auto presentResult = swapchain->Present(0, 0);
+        if (presentResult != DXGI_STATUS_OCCLUDED) // Minimize
+        {
+            ThrowIfError(presentResult);
+        }
     }
 
     inline void AddRenderTexture(ComPtr<ID3D11Resource> resource)
