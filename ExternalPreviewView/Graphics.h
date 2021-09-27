@@ -92,8 +92,8 @@ PS_INPUT VS( VS_INPUT input )
 }
 float4 PS( PS_INPUT input) : SV_Target
 {
-    return float4(input.uv.xy, 0, 1);
-    float4 color = input.color;
+    float4 color = float4(1, 1, 1, 1);
+    color *= input.color;
     color *= _MainTex.Sample(_MainTexSampler, input.uv.xy);
     return color;
 }
@@ -114,13 +114,13 @@ float4 PS( PS_INPUT input) : SV_Target
     static inline void CreateVertex(ComPtr<ID3D11Device> device, ComPtr<ID3DBlob> vsBlob, ComPtr<ID3D11Buffer>& vertexBuffer, ComPtr<ID3D11SamplerState>& sampler, ComPtr<ID3D11InputLayout>& vertexLayout)
     {
         Vertex vertices[] = {
-            { XMFLOAT3(-0.9f, -0.9f, 0.5f), XMFLOAT4(+1.0f, +0.0f, +0.0f, +1.0f), XMFLOAT4(-0.0f, -0.0f, 0, 0) },
-            { XMFLOAT3(-0.9f, +0.9f, 0.5f), XMFLOAT4(+0.0f, +1.0f, +0.0f, +1.0f), XMFLOAT4(-0.0f, +1.0f, 0, 0) },
-            { XMFLOAT3(+0.9f, +0.9f, 0.5f), XMFLOAT4(+1.0f, +0.0f, +0.0f, +1.0f), XMFLOAT4(+1.0f, +1.0f, 0, 0) },
+            { XMFLOAT3(-1, -1, 0.5f), XMFLOAT4(1, 1, 1, 1), XMFLOAT4(-0, +1, 0, 0) },
+            { XMFLOAT3(-1, +1, 0.5f), XMFLOAT4(1, 1, 1, 1), XMFLOAT4(-0, -0, 0, 0) },
+            { XMFLOAT3(+1, +1, 0.5f), XMFLOAT4(1, 1, 1, 1), XMFLOAT4(+1, -0, 0, 0) },
 
-            { XMFLOAT3(-0.9f, -0.9f, 0.5f), XMFLOAT4(+1.0f, +0.0f, +0.0f, +1.0f), XMFLOAT4(-0.0f, -0.0f, 0, 0) },
-            { XMFLOAT3(+0.9f, +0.9f, 0.5f), XMFLOAT4(+1.0f, +0.0f, +0.0f, +1.0f), XMFLOAT4(+1.0f, +1.0f, 0, 0) },
-            { XMFLOAT3(+0.9f, -0.9f, 0.5f), XMFLOAT4(+0.0f, +0.0f, +1.0f, +1.0f), XMFLOAT4(+1.0f, -0.0f, 0, 0) },
+            { XMFLOAT3(-1, -1, 0.5f), XMFLOAT4(1, 1, 1, 1), XMFLOAT4(-0, +1, 0, 0) },
+            { XMFLOAT3(+1, +1, 0.5f), XMFLOAT4(1, 1, 1, 1), XMFLOAT4(+1, -0, 0, 0) },
+            { XMFLOAT3(+1, -1, 0.5f), XMFLOAT4(1, 1, 1, 1), XMFLOAT4(+1, +1, 0, 0) },
         };
         D3D11_BUFFER_DESC vertexBufferDesc = {
             .ByteWidth = sizeof(vertices),
@@ -144,8 +144,8 @@ float4 PS( PS_INPUT input) : SV_Target
 
         D3D11_INPUT_ELEMENT_DESC layout[] = {
             { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-            { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-            { "TEXCOORD", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+            { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, sizeof(XMFLOAT3), D3D11_INPUT_PER_VERTEX_DATA, 0 },
+            { "TEXCOORD", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, sizeof(XMFLOAT3) + sizeof(XMFLOAT4), D3D11_INPUT_PER_VERTEX_DATA, 0 },
         }; 
         ThrowIfError(device->CreateInputLayout(layout, _countof(layout), vsBlob->GetBufferPointer(), vsBlob->GetBufferSize(), &vertexLayout));
     }
@@ -222,8 +222,7 @@ public:
         };
         context->RSSetViewports(1, &viewPort);
 
-        auto now = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-        FLOAT clearColor[] = { 0.0f, now % 1000 / 1000.0f, 0.0f, 1.0f };
+        static FLOAT clearColor[] = { 0, 0, 0, 1 };
         context->ClearRenderTargetView(rtView.Get(), clearColor);
 
         UINT stride = sizeof(Vertex), offset = 0;
