@@ -5,55 +5,59 @@
 #include "Graphics.h"
 
 
-const UINT WM_INITIALIZE_GRAPHICS = WM_USER + 334;
+const UINT WM_GRAPHICS_INITIALIZE = WM_USER + 114514;
+const UINT WM_NEW_RENDER_TEXTURE = WM_GRAPHICS_INITIALIZE + 1;
 
 decltype(&D3D11CreateDevice) Original_D3D11CreateDevice;
 typedef HRESULT(*CreateRenderTargetView)(ID3D11Device*, ID3D11Resource*, const D3D11_RENDER_TARGET_VIEW_DESC*, ID3D11RenderTargetView**);
 CreateRenderTargetView originalCreateRenderTargetView;
-std::shared_ptr<Graphics> graphics;
+
 HWND hwnd;
+std::shared_ptr<Graphics> graphics;
 
 LRESULT MessageHandler(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
     try
     {
-        if (message == WM_INITIALIZE_GRAPHICS)
+        switch (message)
         {
-            //graphics.reset(new Graphics(hWnd));
-        }
-        else if (message == WM_SIZE)
-        {
+        case WM_GRAPHICS_INITIALIZE:
+            if((ID3D11DeviceContext*)wParam != nullptr)
+            {
+                graphics.reset(new Graphics(hWnd, (ID3D11DeviceContext*)wParam));
+            }
+            break;
+        case WM_NEW_RENDER_TEXTURE:
+            if (graphics.get() != nullptr && (ID3D11Resource*)wParam != nullptr)
+            {
+                graphics->AddRenderTexture((ID3D11Resource*)wParam);
+            }
+            break;
+        case WM_SIZE:
             if (graphics.get() != nullptr)
             {
-                graphics->Resize(LOWORD(lParam), HIWORD(lParam));
+                graphics->Resize();
             }
-        }
-        else if (message == WM_TIMER)
-        {
+            break;
+        case WM_TIMER:
             RedrawWindow(hWnd, nullptr, nullptr, RDW_INTERNALPAINT);
-            return 0;
-        }
-        else if (message == WM_LBUTTONDOWN)
-        {
+            break;
+        case WM_LBUTTONDOWN:
             if (graphics.get() != nullptr)
             {
-                graphics->index++;
+                graphics->OnClick(LOWORD(lParam), HIWORD(lParam));
             }
-            return 0;
-        }
-        else if (message == WM_PAINT)
-        {
+            break;
+        case WM_PAINT:
             if (graphics.get() != nullptr)
             {
                 graphics->Render();
-                return 0;
             }
-        }
-        else if (message == WM_DESTROY)
-        {
+            break;
+        case WM_DESTROY:
             graphics.reset();
             PostQuitMessage(0);
-            return 0;
+            break;
         }
     }
     catch (std::wstring& e)
@@ -75,24 +79,25 @@ LRESULT MessageHandler(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
 HWND InitWindow(HINSTANCE hInstance)
 {
-    // Register class
-    WNDCLASSEX wcex;
-    wcex.cbSize = sizeof(WNDCLASSEX);
-    wcex.style = CS_HREDRAW | CS_VREDRAW;
-    wcex.cbClsExtra = 0;
-    wcex.cbWndExtra = 0;
-    wcex.hInstance = hInstance;
-    wcex.hIcon = LoadIcon(hInstance, (LPCTSTR)IDI_APPLICATION);
-    wcex.hCursor = LoadCursor(nullptr, IDC_ARROW);
-    wcex.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
-    wcex.lpszMenuName = nullptr;
-    wcex.lpszClassName = L"ExternalPreviewWindow";
-    wcex.hIconSm = LoadIcon(wcex.hInstance, (LPCTSTR)IDI_APPLICATION);
-    wcex.lpfnWndProc = MessageHandler;
+    // register class
+    WNDCLASSEX wcex = {
+        .cbSize = sizeof(WNDCLASSEX),
+        .style = CS_HREDRAW | CS_VREDRAW,
+        .lpfnWndProc = MessageHandler,
+        .cbClsExtra = 0,
+        .cbWndExtra = 0,
+        .hInstance = hInstance,
+        .hIcon = LoadIcon(hInstance, (LPCTSTR)IDI_APPLICATION),
+        .hCursor = LoadCursor(nullptr, IDC_ARROW),
+        .hbrBackground = (HBRUSH)(COLOR_WINDOW + 1),
+        .lpszMenuName = nullptr,
+        .lpszClassName = L"ExternalPreviewWindow",
+        .hIconSm = LoadIcon(hInstance, (LPCTSTR)IDI_APPLICATION),
+    };
     if (!RegisterClassEx(&wcex)) throw std::wstring(L"fail register");
 
-    // Create window
-    RECT rc = { 0, 0, 800, 600 };
+    // create window
+    RECT rc = { 0, 0, 1600, 900 };
     AdjustWindowRect(&rc, WS_OVERLAPPEDWINDOW, FALSE);
     auto hwnd = CreateWindow(L"ExternalPreviewWindow", L"RecottePlugin",
         WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_SIZEBOX,
@@ -101,9 +106,9 @@ HWND InitWindow(HINSTANCE hInstance)
     if (!hwnd) throw std::wstring(L"fail create window");
 
     ShowWindow(hwnd, SW_SHOW);
+    SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
     return hwnd;
 }
-
 
 extern "C" __declspec(dllexport) void WINAPI OnPluginStart(HINSTANCE handle)
 {
@@ -118,7 +123,7 @@ extern "C" __declspec(dllexport) void WINAPI OnPluginStart(HINSTANCE handle)
             Flags |= D3D11_CREATE_DEVICE_FLAG::D3D11_CREATE_DEVICE_DEBUG;
             #endif
             auto hr = Original_D3D11CreateDevice(pAdapter, DriverType, Software, Flags, pFeatureLevels, FeatureLevels, SDKVersion, ppDevice, pFeatureLevel, ppImmediateContext);
-            graphics.reset(new Graphics(hwnd, *ppDevice, *ppImmediateContext));
+            SendMessageW(hwnd, WM_GRAPHICS_INITIALIZE, (UINT_PTR)*ppImmediateContext, 0);
 
             auto vTable = *(CreateRenderTargetView**)(*ppDevice);
             DWORD oldrights, newrights = PAGE_READWRITE;
@@ -126,18 +131,13 @@ extern "C" __declspec(dllexport) void WINAPI OnPluginStart(HINSTANCE handle)
             originalCreateRenderTargetView = vTable[3 + 6];
             vTable[3 + 6] = [](ID3D11Device* device, ID3D11Resource* pResource, const D3D11_RENDER_TARGET_VIEW_DESC* pDesc, ID3D11RenderTargetView** ppRTView)
             {
-                auto hr = originalCreateRenderTargetView(device, pResource, pDesc, ppRTView);
-                if (graphics.get() != nullptr)
-                {
-                    graphics->AddRenderTexture(pResource);
-                }
-                return hr;
+                SendMessageW(hwnd, WM_NEW_RENDER_TEXTURE, (UINT_PTR)pResource, 0);
+                return originalCreateRenderTargetView(device, pResource, pDesc, ppRTView);
             };
             return hr;
         });
 
     hwnd = InitWindow(handle);
-    PostMessageW(hwnd, WM_INITIALIZE_GRAPHICS, 0, 0); // DllMainでDX系APIが使えないので遅延させる
 }
 
 extern "C" __declspec(dllexport) void WINAPI OnPluginFinish(HINSTANCE haneld) {}

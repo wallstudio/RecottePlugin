@@ -20,13 +20,21 @@
 #pragma comment(lib, "d3dcompiler.lib")
 
 
-template<typename T>
-using ComPtr = Microsoft::WRL::ComPtr<T>;
+using Microsoft::WRL::ComPtr;
 using namespace DirectX;
+
 
 class Graphics
 {
+    struct Vertex
+    {
+        XMFLOAT3 position;
+        XMFLOAT4 color;
+        XMFLOAT4 uv;
+    };
+
     // https://github.com/walbourn/directx-sdk-samples/tree/master/Direct3D11Tutorials
+
     HWND hwnd;
     ComPtr<IDXGIFactory2> factory;
     ComPtr<IDXGIAdapter> adapter;
@@ -41,8 +49,9 @@ class Graphics
     ComPtr<ID3D11PixelShader> ps;
     ComPtr<ID3D11SamplerState> sampler;
     std::set<ComPtr<ID3D11Texture2D>> capturedTextures;
+    size_t index = 0;
 
-    HRESULT ThrowIfError(HRESULT hr)
+    static inline HRESULT ThrowIfError(HRESULT hr)
     {
         if (hr != S_OK)
         {
@@ -52,95 +61,75 @@ class Graphics
         return hr;
     }
 
-public:
-    int index = 0;
-    inline Graphics(HWND hwnd, ID3D11Device* device, ID3D11DeviceContext* context) : hwnd(hwnd), device(device), context(context)
+    static inline void CreateShader(ComPtr<ID3D11Device> device, ComPtr<ID3D11VertexShader>& vs, ComPtr<ID3D11PixelShader>& ps, ComPtr<ID3DBlob>& vsBlob)
     {
-#if _DEBUG
-        ComPtr<ID3D12Debug> debug;
-        ThrowIfError(D3D12GetDebugInterface(IID_PPV_ARGS(&debug)));
-        debug->EnableDebugLayer();
-#endif
-        ComPtr<IDXGIDevice1> dxgiDevice;
-        ThrowIfError(device->QueryInterface(IID_PPV_ARGS(&dxgiDevice)));
-        ThrowIfError(dxgiDevice->GetAdapter(adapter.GetAddressOf()));
-        ThrowIfError(adapter->GetParent(__uuidof(IDXGIFactory1), &factory));
+        ComPtr<ID3DBlob> psBlob, error;
+        char code[] = R"(
+Texture2D _MainTex : register(t0);
+SamplerState _MainTexSampler : register(s0);
 
-//        ThrowIfError(CreateDXGIFactory1(IID_PPV_ARGS(&factory)));
-//        ThrowIfError(factory->EnumAdapters(0, &adapter));
-//        DXGI_ADAPTER_DESC adapterDesc;
-//        ThrowIfError(adapter->GetDesc(&adapterDesc));
-//
-//        D3D_FEATURE_LEVEL featureLevels[] = { D3D_FEATURE_LEVEL::D3D_FEATURE_LEVEL_11_1 };
-//        D3D_FEATURE_LEVEL featureLevel;
-//        ThrowIfError(D3D11CreateDevice(
-//            adapter.Get(),
-//            D3D_DRIVER_TYPE::D3D_DRIVER_TYPE_UNKNOWN,
-//            nullptr,
-//#if _DEBUG
-//            D3D11_CREATE_DEVICE_FLAG::D3D11_CREATE_DEVICE_DEBUG,
-//#else
-//            0,
-//#endif
-//            featureLevels, _countof(featureLevels),
-//            D3D11_SDK_VERSION,
-//            &device, &featureLevel, &context));
+struct VS_INPUT
+{
+    float3 position : POSITION;
+    float4 color : COLOR;
+    float4 uv : TEXCOORD0;
+};
+struct PS_INPUT
+{
+    float4 position : SV_POSITION;
+    float4 color : COLOR;
+    float4 uv : TEXCOORD0;
+};
 
-        RECT windowRect;
-        GetClientRect(hwnd, &windowRect);
-        DXGI_SWAP_CHAIN_DESC1 swapchainDesc = {
-            .Width = (UINT)(windowRect.right - windowRect.left),
-            .Height = (UINT)(windowRect.bottom - windowRect.top),
-            .Format = DXGI_FORMAT_R8G8B8A8_UNORM,
-            .SampleDesc = { 1, 0, },
-            .BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT,
-            .BufferCount = 1,
-        };
-        ThrowIfError(factory->CreateSwapChainForHwnd(device, hwnd, &swapchainDesc, nullptr, nullptr, &swapchain));
-
-        ComPtr<ID3D11Texture2D> swapchainBuffer;
-        ThrowIfError(swapchain->GetBuffer(0, IID_PPV_ARGS(&swapchainBuffer)));
-        //auto data = true;
-        //ThrowIfError(swapchainBuffer->SetPrivateData(GetPluginDxObjectDataGUID(), sizeof(data), &data));
-
-        ThrowIfError(device->CreateRenderTargetView(swapchainBuffer.Get(), nullptr, &rtView));
-
-        XMFLOAT3 vertices[] =
-        {
-            XMFLOAT3(0.0f, 0.0f, 0.5f), XMFLOAT3(0.0f, 1.0f, 0.5f), XMFLOAT3(1.0f, 1.0f, 0.5f),
-            XMFLOAT3(0.0f, 0.0f, 0.5f), XMFLOAT3(1.0f, 1.0f, 0.5f), XMFLOAT3(1.0f, 0.0f, 0.5f),
-        };
-        D3D11_BUFFER_DESC vertexBufferDesc = {
-            .ByteWidth = sizeof(XMFLOAT3) * 6,
-            .Usage = D3D11_USAGE_DEFAULT,
-            .BindFlags = D3D11_BIND_VERTEX_BUFFER,
-            .CPUAccessFlags = 0,
-        };
-        D3D11_SUBRESOURCE_DATA subResourceData = { .pSysMem = vertices };
-        ThrowIfError(device->CreateBuffer(&vertexBufferDesc, &subResourceData, &vertexBuffer));
-
-
-        ComPtr<ID3DBlob> vsBlob, psBlob, error;
-        std::string code = 
-            "Texture2D t : register(t0);\n"
-            "SamplerState s : register(s0);\n"
-            "float4 VS(float4 pos : POSITION) : SV_POSITION { return pos; }\n"
-            "float4 PS(float4 pos : SV_POSITION) : SV_Target"
-            "{"
-            "   return t.Sample(s, pos.xy / 400);"
-            //"   return return float4(1, 0, 0, 1);"
-            "};";
+PS_INPUT VS( VS_INPUT input )
+{
+    // TODO: MVP?
+    PS_INPUT output;
+    output.position = float4(input.position, 1);
+    output.color = input.color;
+    output.uv = input.uv;
+    return output;
+}
+float4 PS( PS_INPUT input) : SV_Target
+{
+    return float4(input.uv.xy, 0, 1);
+    float4 color = input.color;
+    color *= _MainTex.Sample(_MainTexSampler, input.uv.xy);
+    return color;
+}
+        )";
         try
         {
-            ThrowIfError(D3DCompile(code.data(), code.size(), nullptr, nullptr, nullptr, "VS", "vs_4_0", 0, 0, &vsBlob, &error));
+            ThrowIfError(D3DCompile(code, sizeof(code), nullptr, nullptr, nullptr, "VS", "vs_4_0", 0, 0, &vsBlob, &error));
             ThrowIfError(device->CreateVertexShader(vsBlob->GetBufferPointer(), vsBlob->GetBufferSize(), nullptr, &vs));
-            ThrowIfError(D3DCompile(code.data(), code.size(), nullptr, nullptr, nullptr, "PS", "ps_4_0", 0, 0, &psBlob, &error));
+            ThrowIfError(D3DCompile(code, sizeof(code), nullptr, nullptr, nullptr, "PS", "ps_4_0", 0, 0, &psBlob, &error));
             ThrowIfError(device->CreatePixelShader(psBlob->GetBufferPointer(), psBlob->GetBufferSize(), nullptr, &ps));
         }
         catch (...)
         {
             throw std::exception((char*)error->GetBufferPointer());
         }
+    }
+
+    static inline void CreateVertex(ComPtr<ID3D11Device> device, ComPtr<ID3DBlob> vsBlob, ComPtr<ID3D11Buffer>& vertexBuffer, ComPtr<ID3D11SamplerState>& sampler, ComPtr<ID3D11InputLayout>& vertexLayout)
+    {
+        Vertex vertices[] = {
+            { XMFLOAT3(-0.9f, -0.9f, 0.5f), XMFLOAT4(+1.0f, +0.0f, +0.0f, +1.0f), XMFLOAT4(-0.0f, -0.0f, 0, 0) },
+            { XMFLOAT3(-0.9f, +0.9f, 0.5f), XMFLOAT4(+0.0f, +1.0f, +0.0f, +1.0f), XMFLOAT4(-0.0f, +1.0f, 0, 0) },
+            { XMFLOAT3(+0.9f, +0.9f, 0.5f), XMFLOAT4(+1.0f, +0.0f, +0.0f, +1.0f), XMFLOAT4(+1.0f, +1.0f, 0, 0) },
+
+            { XMFLOAT3(-0.9f, -0.9f, 0.5f), XMFLOAT4(+1.0f, +0.0f, +0.0f, +1.0f), XMFLOAT4(-0.0f, -0.0f, 0, 0) },
+            { XMFLOAT3(+0.9f, +0.9f, 0.5f), XMFLOAT4(+1.0f, +0.0f, +0.0f, +1.0f), XMFLOAT4(+1.0f, +1.0f, 0, 0) },
+            { XMFLOAT3(+0.9f, -0.9f, 0.5f), XMFLOAT4(+0.0f, +0.0f, +1.0f, +1.0f), XMFLOAT4(+1.0f, -0.0f, 0, 0) },
+        };
+        D3D11_BUFFER_DESC vertexBufferDesc = {
+            .ByteWidth = sizeof(vertices),
+            .Usage = D3D11_USAGE_DEFAULT,
+            .BindFlags = D3D11_BIND_VERTEX_BUFFER,
+            .CPUAccessFlags = 0,
+        };
+        D3D11_SUBRESOURCE_DATA subResourceData = { .pSysMem = vertices };
+        ThrowIfError(device->CreateBuffer(&vertexBufferDesc, &subResourceData, &vertexBuffer));
 
         D3D11_SAMPLER_DESC sampDesc = {
             .Filter = D3D11_FILTER::D3D11_FILTER_MIN_MAG_MIP_LINEAR,
@@ -153,9 +142,34 @@ public:
         };
         device->CreateSamplerState(&sampDesc, &sampler);
 
-        D3D11_INPUT_ELEMENT_DESC layout[] = { { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 }, };
+        D3D11_INPUT_ELEMENT_DESC layout[] = {
+            { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+            { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+            { "TEXCOORD", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+        }; 
         ThrowIfError(device->CreateInputLayout(layout, _countof(layout), vsBlob->GetBufferPointer(), vsBlob->GetBufferSize(), &vertexLayout));
+    }
 
+public:
+    inline Graphics(HWND hwnd, ID3D11DeviceContext* context) : hwnd(hwnd), context(context)
+    {
+#if _DEBUG
+        ComPtr<ID3D12Debug> debug;
+        ThrowIfError(D3D12GetDebugInterface(IID_PPV_ARGS(&debug)));
+        debug->EnableDebugLayer();
+#endif
+        context->GetDevice(&device);
+        ComPtr<IDXGIDevice1> dxgiDevice;
+        ThrowIfError(device->QueryInterface(IID_PPV_ARGS(&dxgiDevice)));
+        ThrowIfError(dxgiDevice->GetAdapter(adapter.GetAddressOf()));
+        ThrowIfError(adapter->GetParent(__uuidof(IDXGIFactory1), &factory));
+
+        Resize();
+
+        ComPtr<ID3DBlob> vsBlob;
+        CreateShader(device, vs, ps, vsBlob);
+        CreateVertex(device, vsBlob, vertexBuffer, sampler, vertexLayout);
+       
         SetTimer(hwnd, 334, 1000 * 1 / 60, nullptr);
     }
 
@@ -165,21 +179,44 @@ public:
         context->Flush();
     }
 
-    inline void Resize(int width, int height) {} // TODO:
+    inline void Resize()
+    {
+        RECT windowRect;
+        GetClientRect(hwnd, &windowRect);
+        DXGI_SWAP_CHAIN_DESC1 swapchainDesc = {
+            .Width = (UINT)(windowRect.right - windowRect.left),
+            .Height = (UINT)(windowRect.bottom - windowRect.top),
+            .Format = DXGI_FORMAT_R8G8B8A8_UNORM,
+            .SampleDesc = { 1, 0, },
+            .BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT,
+            .BufferCount = 1,
+        };
+        ThrowIfError(factory->CreateSwapChainForHwnd(device.Get(), hwnd, &swapchainDesc, nullptr, nullptr, &swapchain));
+
+        ComPtr<ID3D11Texture2D> swapchainBuffer;
+        ThrowIfError(swapchain->GetBuffer(0, IID_PPV_ARGS(&swapchainBuffer)));
+        ThrowIfError(device->CreateRenderTargetView(swapchainBuffer.Get(), nullptr, &rtView));
+    }
+
+    inline void OnClick(int width, int height)
+    {
+        if (capturedTextures.size() > 0)
+        {
+            index = (index + 1) % capturedTextures.size();
+        }
+    }
 
     inline void Render()
     {
-        if (capturedTextures.size() == 0) return;
-
         context->OMSetRenderTargets(1, rtView.GetAddressOf(), nullptr);
 
         RECT windowRect;
         GetClientRect(hwnd, &windowRect);
         D3D11_VIEWPORT viewPort = {
-            .TopLeftX = -100,
-            .TopLeftY = 50,
-            .Width = (FLOAT)(windowRect.right - windowRect.left) /1,
-            .Height = (FLOAT)(windowRect.bottom - windowRect.top) /1,
+            .TopLeftX = 0,
+            .TopLeftY = 0,
+            .Width = (FLOAT)(windowRect.right - windowRect.left),
+            .Height = (FLOAT)(windowRect.bottom - windowRect.top),
             .MinDepth = 0,
             .MaxDepth = 1,
         };
@@ -189,30 +226,21 @@ public:
         FLOAT clearColor[] = { 0.0f, now % 1000 / 1000.0f, 0.0f, 1.0f };
         context->ClearRenderTargetView(rtView.Get(), clearColor);
 
-        UINT stride = sizeof(XMFLOAT3);
-        UINT offset = 0;
+        UINT stride = sizeof(Vertex), offset = 0;
         context->IASetVertexBuffers(0, 1, vertexBuffer.GetAddressOf(), &stride, &offset);
         context->IASetInputLayout(vertexLayout.Get());
         context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
         
-        context->VSSetShader(vs.Get(), nullptr, 0);
-        context->PSSetShader(ps.Get(), nullptr, 0);
-
-        for (auto& texture : capturedTextures)
+        if (capturedTextures.size())
         {
-            texture->AddRef();
-            if (texture->Release() == 1)
+            for (auto& texture : capturedTextures)
             {
-                D3D11_TEXTURE2D_DESC desc;
-                texture->GetDesc(&desc);
-                OutputDebugStringW(std::format(L"not used texture {}x{} {}\n", desc.Width, desc.Height, (int)desc.Format).c_str());
-                //capturedTextures.erase(texture);
+                texture->AddRef();
+                if (texture->Release() == 1)
+                {
+                    //capturedTextures.erase(texture);
+                }
             }
-        }
-        if (capturedTextures.size() > 0)
-        {
-            //static auto index = 0;
-            index = (index) % capturedTextures.size();
             auto texture = *std::next(capturedTextures.begin(), index);
             D3D11_TEXTURE2D_DESC desc;
             texture->GetDesc(&desc);
@@ -221,16 +249,15 @@ public:
                 .ViewDimension = D3D11_SRV_DIMENSION::D3D11_SRV_DIMENSION_TEXTURE2D,
                 .Texture2D = {.MostDetailedMip = 0, .MipLevels = 1, },
             };
-            if (FAILED(device->CreateShaderResourceView(texture.Get(), &srvDesc, &srView))) // CreateTexture ‚ÉHook‚µ‚Ä D3D11_BIND_SHADER_RESOURCE ‚·‚ê‚Î’Ê‚é
-            {
-                return;
-            }
+            ThrowIfError(device->CreateShaderResourceView(texture.Get(), &srvDesc, &srView));
             context->PSSetShaderResources(0, 1, srView.GetAddressOf());
             context->PSSetSamplers(0, 1, sampler.GetAddressOf());
         }
+        context->VSSetShader(vs.Get(), nullptr, 0);
+        context->PSSetShader(ps.Get(), nullptr, 0);
         context->Draw(6, 0);
 
-        swapchain->Present(0, 0);
+        ThrowIfError(swapchain->Present(0, 0));
     }
 
     inline void AddRenderTexture(ComPtr<ID3D11Resource> resource)
