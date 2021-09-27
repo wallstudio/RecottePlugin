@@ -1,4 +1,4 @@
-#define WIN32_LEAN_AND_MEAN
+﻿#define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
 #include <comdef.h>
 #include "../HookHelper/HookHelper.h"
@@ -8,12 +8,25 @@
 const UINT WM_GRAPHICS_INITIALIZE = WM_USER + 114514;
 const UINT WM_NEW_RENDER_TEXTURE = WM_GRAPHICS_INITIALIZE + 1;
 
+decltype(&CreateWindowExW) g_Original_CreateWindowExW;
 decltype(&D3D11CreateDevice) Original_D3D11CreateDevice;
 typedef HRESULT(*CreateRenderTargetView)(ID3D11Device*, ID3D11Resource*, const D3D11_RENDER_TARGET_VIEW_DESC*, ID3D11RenderTargetView**);
 CreateRenderTargetView originalCreateRenderTargetView;
 
 HWND hwnd;
 std::shared_ptr<Graphics> graphics;
+WNDPROC fowerd;
+
+HWND _CreateWindowExW(DWORD dwExStyle, LPCWSTR lpClassName, LPCWSTR lpWindowName, DWORD dwStyle, int X, int Y, int nWidth, int nHeight, HWND hWndParent, HMENU hMenu, HINSTANCE hInstance, LPVOID lpParam)
+{
+    auto hwnd = g_Original_CreateWindowExW(dwExStyle, lpClassName, lpWindowName, dwStyle, X, Y, nWidth, nHeight, hWndParent, hMenu, hInstance, lpParam);
+
+    if (lpWindowName != nullptr && std::wstring(lpWindowName) == L"1画面分進める")
+    {
+        auto popupHwnd = g_Original_CreateWindowExW(dwExStyle, lpClassName, L"uh_preview_popup", dwStyle, X, 0, nWidth, nHeight, hWndParent, hMenu, hInstance, lpParam);
+    }
+    return hwnd;
+}
 
 LRESULT MessageHandler(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
@@ -22,7 +35,7 @@ LRESULT MessageHandler(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         switch (message)
         {
         case WM_GRAPHICS_INITIALIZE:
-            if((ID3D11DeviceContext*)wParam != nullptr)
+            if ((ID3D11DeviceContext*)wParam != nullptr)
             {
                 graphics.reset(new Graphics(hWnd, (ID3D11DeviceContext*)wParam));
             }
@@ -112,16 +125,16 @@ HWND InitWindow(HINSTANCE hInstance)
 
 extern "C" __declspec(dllexport) void WINAPI OnPluginStart(HINSTANCE handle)
 {
-    // NOTE: Swapchainは使っていない（プログラム内の参照は画面キャプチャの時用）
+    g_Original_CreateWindowExW = RecottePluginFoundation::OverrideIATFunction("user32.dll", "CreateWindowExW", _CreateWindowExW);
 
     Original_D3D11CreateDevice = RecottePluginFoundation::OverrideIATFunction<decltype(&D3D11CreateDevice)>("d3d11.dll", "D3D11CreateDevice",
         [](IDXGIAdapter* pAdapter, D3D_DRIVER_TYPE DriverType, HMODULE Software, UINT Flags, const D3D_FEATURE_LEVEL* pFeatureLevels, UINT FeatureLevels, UINT SDKVersion, ID3D11Device** ppDevice, D3D_FEATURE_LEVEL* pFeatureLevel, ID3D11DeviceContext** ppImmediateContext)
         {
             using Microsoft::WRL::ComPtr;
 
-            #if _DEBUG
+#if _DEBUG
             Flags |= D3D11_CREATE_DEVICE_FLAG::D3D11_CREATE_DEVICE_DEBUG;
-            #endif
+#endif
             auto hr = Original_D3D11CreateDevice(pAdapter, DriverType, Software, Flags, pFeatureLevels, FeatureLevels, SDKVersion, ppDevice, pFeatureLevel, ppImmediateContext);
             SendMessageW(hwnd, WM_GRAPHICS_INITIALIZE, (UINT_PTR)*ppImmediateContext, 0);
 
