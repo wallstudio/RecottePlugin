@@ -48,6 +48,7 @@ class Graphics
     ComPtr<ID3D11VertexShader> vs;
     ComPtr<ID3D11PixelShader> ps;
     ComPtr<ID3D11SamplerState> sampler;
+    ComPtr<ID3D11Buffer> cBuffer;
     std::set<ComPtr<ID3D11Texture2D>> capturedTextures;
     size_t index = 0;
 
@@ -67,6 +68,10 @@ class Graphics
         char code[] = R"(
 Texture2D _MainTex : register(t0);
 SamplerState _MainTexSampler : register(s0);
+cbuffer _CB : register(b0)
+{
+    float4x4 transform;
+};
 
 struct VS_INPUT
 {
@@ -85,7 +90,7 @@ PS_INPUT VS( VS_INPUT input )
 {
     // TODO: MVP?
     PS_INPUT output;
-    output.position = float4(input.position, 1);
+    output.position = mul(float4(input.position, 1), transform);
     output.color = input.color;
     output.uv = input.uv;
     return output;
@@ -150,6 +155,17 @@ float4 PS( PS_INPUT input) : SV_Target
         ThrowIfError(device->CreateInputLayout(layout, _countof(layout), vsBlob->GetBufferPointer(), vsBlob->GetBufferSize(), &vertexLayout));
     }
 
+    static inline void CreateConstant(ComPtr<ID3D11Device> device, ComPtr<ID3D11Buffer>& cBuffer)
+    {
+        D3D11_BUFFER_DESC desc =
+        {
+            .ByteWidth = sizeof(XMMATRIX),
+            .Usage = D3D11_USAGE::D3D11_USAGE_DEFAULT,
+            .BindFlags = D3D11_BIND_FLAG::D3D11_BIND_CONSTANT_BUFFER,
+        };
+        ThrowIfError(device->CreateBuffer(&desc, nullptr, &cBuffer));
+    }
+
 public:
     inline Graphics(HWND hwnd, ID3D11DeviceContext* context) : hwnd(hwnd), context(context)
     {
@@ -164,12 +180,13 @@ public:
         ThrowIfError(dxgiDevice->GetAdapter(adapter.GetAddressOf()));
         ThrowIfError(adapter->GetParent(__uuidof(IDXGIFactory1), &factory));
 
-        Resize();
-
         ComPtr<ID3DBlob> vsBlob;
         CreateShader(device, vs, ps, vsBlob);
         CreateVertex(device, vsBlob, vertexBuffer, sampler, vertexLayout);
-       
+        CreateConstant(device, cBuffer);
+
+        Resize();
+               
         SetTimer(hwnd, 334, 1000 * 1 / 60, nullptr);
     }
 
@@ -196,6 +213,19 @@ public:
         ComPtr<ID3D11Texture2D> swapchainBuffer;
         ThrowIfError(swapchain->GetBuffer(0, IID_PPV_ARGS(&swapchainBuffer)));
         ThrowIfError(device->CreateRenderTargetView(swapchainBuffer.Get(), nullptr, &rtView));
+
+        if (capturedTextures.size())
+        {
+            auto texture = *std::next(capturedTextures.begin(), index);
+            D3D11_TEXTURE2D_DESC desc;
+            texture->GetDesc(&desc);
+            auto texAspect = desc.Width / (double)desc.Height;
+            auto winAspect = swapchainDesc.Width / (double)swapchainDesc.Height;
+            FXMMATRIX matrix = winAspect > texAspect
+                ? XMMatrixScaling(1 / winAspect * texAspect, 1, 1)
+                : XMMatrixScaling(1, 1 * winAspect / texAspect, 1);
+            context->UpdateSubresource(cBuffer.Get(), 0, nullptr, &matrix, 0, 0);
+        }
     }
 
     inline void OnClick(int width, int height)
@@ -203,6 +233,7 @@ public:
         if (capturedTextures.size() > 0)
         {
             index = (index + 1) % capturedTextures.size();
+            Resize();
         }
     }
 
@@ -251,6 +282,7 @@ public:
             ThrowIfError(device->CreateShaderResourceView(texture.Get(), &srvDesc, &srView));
             context->PSSetShaderResources(0, 1, srView.GetAddressOf());
             context->PSSetSamplers(0, 1, sampler.GetAddressOf());
+            context->VSSetConstantBuffers(0, 1, cBuffer.GetAddressOf());
         }
         context->VSSetShader(vs.Get(), nullptr, 0);
         context->PSSetShader(ps.Get(), nullptr, 0);

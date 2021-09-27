@@ -106,7 +106,7 @@ HWND InitWindow(HINSTANCE hInstance)
     if (!hwnd) throw std::wstring(L"fail create window");
 
     ShowWindow(hwnd, SW_SHOW);
-    SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
+    //SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
     return hwnd;
 }
 
