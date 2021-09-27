@@ -36,6 +36,7 @@ class Graphics
     // https://github.com/walbourn/directx-sdk-samples/tree/master/Direct3D11Tutorials
 
     HWND hwnd;
+    UINT_PTR timer;
     ComPtr<IDXGIFactory2> factory;
     ComPtr<IDXGIAdapter> adapter;
     ComPtr<ID3D11Device> device;
@@ -49,8 +50,8 @@ class Graphics
     ComPtr<ID3D11PixelShader> ps;
     ComPtr<ID3D11SamplerState> sampler;
     ComPtr<ID3D11Buffer> cBuffer;
-    std::set<ComPtr<ID3D11Texture2D>> capturedTextures;
     size_t index = 0;
+    static inline std::set<ComPtr<ID3D11Texture2D>> capturedTextures;
 
     static inline HRESULT ThrowIfError(HRESULT hr)
     {
@@ -187,11 +188,13 @@ public:
 
         Resize();
                
-        SetTimer(hwnd, 334, 1000 * 1 / 60, nullptr);
+        timer = SetTimer(hwnd, 334, 1000 * 1 / 90, nullptr);
     }
 
     inline ~Graphics()
     {
+        KillTimer(hwnd, timer);
+        DestroyWindow(hwnd);
         context->ClearState();
         context->Flush();
     }
@@ -299,7 +302,7 @@ public:
         context->Flush();
     }
 
-    inline void AddRenderTexture(ComPtr<ID3D11Resource> resource)
+    static inline void AddRenderTexture(ComPtr<ID3D11Resource> resource)
     {
         ComPtr<ID3D11Texture2D> texture;
         if (FAILED(resource->QueryInterface(IID_PPV_ARGS(&texture))))
@@ -319,4 +322,5 @@ public:
 
         capturedTextures.insert(texture);
     }
+
 };

@@ -6,16 +6,11 @@
 
 
 const UINT WM_GRAPHICS_INITIALIZE = WM_USER + 114514;
-const UINT WM_NEW_RENDER_TEXTURE = WM_GRAPHICS_INITIALIZE + 1;
 
 decltype(&CreateWindowExW) g_Original_CreateWindowExW;
 decltype(&D3D11CreateDevice) Original_D3D11CreateDevice;
-typedef HRESULT(*CreateRenderTargetView)(ID3D11Device*, ID3D11Resource*, const D3D11_RENDER_TARGET_VIEW_DESC*, ID3D11RenderTargetView**);
-CreateRenderTargetView originalCreateRenderTargetView;
 
-HWND hwnd;
-std::shared_ptr<Graphics> graphics;
-WNDPROC fowerd;
+std::function<void()> graphicCreatMessager;
 
 HWND _CreateWindowExW(DWORD dwExStyle, LPCWSTR lpClassName, LPCWSTR lpWindowName, DWORD dwStyle, int X, int Y, int nWidth, int nHeight, HWND hWndParent, HMENU hMenu, HINSTANCE hInstance, LPVOID lpParam)
 {
@@ -23,13 +18,36 @@ HWND _CreateWindowExW(DWORD dwExStyle, LPCWSTR lpClassName, LPCWSTR lpWindowName
 
     if (lpWindowName != nullptr && std::wstring(lpWindowName) == L"1画面分進める")
     {
-        auto popupHwnd = g_Original_CreateWindowExW(dwExStyle, lpClassName, L"uh_preview_popup", dwStyle, X, 0, nWidth, nHeight, hWndParent, hMenu, hInstance, lpParam);
+        auto hwnd = g_Original_CreateWindowExW(dwExStyle, L"BUTTON", L"uh_preview_popup", dwStyle, X + 10, 0, nWidth, nHeight, hWndParent, hMenu, hInstance, lpParam);
+        WNDPROC proc = [](HWND hwnd, UINT m, WPARAM w, LPARAM l) -> LRESULT
+        {
+            if (m == WM_LBUTTONUP)
+            {
+                MessageBoxW(nullptr, L"プレビュー画面をポップアウトします", L"RecottePlugin", MB_OK);
+                graphicCreatMessager();
+            }
+            else if (m == WM_PAINT)
+            {
+                PAINTSTRUCT ps;
+                auto hdc = BeginPaint(hwnd, &ps);
+                RECT r = { 0, 0, 28, 28 };
+                FillRect(hdc, &r, (HBRUSH)GetStockObject(GRAY_BRUSH));
+                SetBkColor(hdc, RGB(0x88, 0x88, 0x88));
+                SetTextColor(hdc, RGB(0xFF, 0xFF, 0xFF));
+                auto markText = L"POP";
+                TextOutW(hdc, 0, 0, markText, lstrlenW(markText));
+                EndPaint(hwnd, &ps);
+            }
+            return DefWindowProcW(hwnd, m, w, l);
+        };
+        SetWindowLongPtrW(hwnd, GWLP_WNDPROC, (LONG_PTR)proc);
     }
     return hwnd;
 }
 
 LRESULT MessageHandler(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
+    static std::shared_ptr<Graphics> graphics;
     try
     {
         switch (message)
@@ -38,12 +56,6 @@ LRESULT MessageHandler(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             if ((ID3D11DeviceContext*)wParam != nullptr)
             {
                 graphics.reset(new Graphics(hWnd, (ID3D11DeviceContext*)wParam));
-            }
-            break;
-        case WM_NEW_RENDER_TEXTURE:
-            if (graphics.get() != nullptr && (ID3D11Resource*)wParam != nullptr)
-            {
-                graphics->AddRenderTexture((ID3D11Resource*)wParam);
             }
             break;
         case WM_SIZE:
@@ -69,7 +81,6 @@ LRESULT MessageHandler(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             break;
         case WM_DESTROY:
             graphics.reset();
-            PostQuitMessage(0);
             break;
         }
     }
@@ -93,21 +104,25 @@ LRESULT MessageHandler(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 HWND InitWindow(HINSTANCE hInstance)
 {
     // register class
-    WNDCLASSEX wcex = {
-        .cbSize = sizeof(WNDCLASSEX),
-        .style = CS_HREDRAW | CS_VREDRAW,
-        .lpfnWndProc = MessageHandler,
-        .cbClsExtra = 0,
-        .cbWndExtra = 0,
-        .hInstance = hInstance,
-        .hIcon = LoadIcon(hInstance, (LPCTSTR)IDI_APPLICATION),
-        .hCursor = LoadCursor(nullptr, IDC_ARROW),
-        .hbrBackground = (HBRUSH)(COLOR_WINDOW + 1),
-        .lpszMenuName = nullptr,
-        .lpszClassName = L"ExternalPreviewWindow",
-        .hIconSm = LoadIcon(hInstance, (LPCTSTR)IDI_APPLICATION),
-    };
-    if (!RegisterClassEx(&wcex)) throw std::wstring(L"fail register");
+    WNDCLASSEX wcex;
+    if (!GetClassInfoExW(hInstance, L"ExternalPreviewWindow", &wcex))
+    {
+        wcex = {
+            .cbSize = sizeof(WNDCLASSEX),
+            .style = CS_HREDRAW | CS_VREDRAW,
+            .lpfnWndProc = MessageHandler,
+            .cbClsExtra = 0,
+            .cbWndExtra = 0,
+            .hInstance = hInstance,
+            .hIcon = LoadIcon(hInstance, (LPCTSTR)IDI_APPLICATION),
+            .hCursor = LoadCursor(nullptr, IDC_ARROW),
+            .hbrBackground = (HBRUSH)(COLOR_WINDOW + 1),
+            .lpszMenuName = nullptr,
+            .lpszClassName = L"ExternalPreviewWindow",
+            .hIconSm = LoadIcon(hInstance, (LPCTSTR)IDI_APPLICATION),
+        };
+        if (!RegisterClassEx(&wcex)) throw std::wstring(L"fail register");
+    }
 
     // create window
     RECT rc = { 0, 0, 1600, 900 };
@@ -118,39 +133,48 @@ HWND InitWindow(HINSTANCE hInstance)
         nullptr);
     if (!hwnd) throw std::wstring(L"fail create window");
 
-    ShowWindow(hwnd, SW_MINIMIZE);
+    ShowWindow(hwnd, SW_SHOW);
     //SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
     return hwnd;
 }
 
 extern "C" __declspec(dllexport) void WINAPI OnPluginStart(HINSTANCE handle)
 {
+    static auto dllHandle = handle;
     g_Original_CreateWindowExW = RecottePluginFoundation::OverrideIATFunction("user32.dll", "CreateWindowExW", _CreateWindowExW);
 
     Original_D3D11CreateDevice = RecottePluginFoundation::OverrideIATFunction<decltype(&D3D11CreateDevice)>("d3d11.dll", "D3D11CreateDevice",
         [](IDXGIAdapter* pAdapter, D3D_DRIVER_TYPE DriverType, HMODULE Software, UINT Flags, const D3D_FEATURE_LEVEL* pFeatureLevels, UINT FeatureLevels, UINT SDKVersion, ID3D11Device** ppDevice, D3D_FEATURE_LEVEL* pFeatureLevel, ID3D11DeviceContext** ppImmediateContext)
         {
             using Microsoft::WRL::ComPtr;
+            typedef HRESULT(*CreateRenderTargetView)(ID3D11Device*, ID3D11Resource*, const D3D11_RENDER_TARGET_VIEW_DESC*, ID3D11RenderTargetView**);
 
 #if _DEBUG
-            Flags |= D3D11_CREATE_DEVICE_FLAG::D3D11_CREATE_DEVICE_DEBUG;
+                Flags |= D3D11_CREATE_DEVICE_FLAG::D3D11_CREATE_DEVICE_DEBUG;
 #endif
+
             auto hr = Original_D3D11CreateDevice(pAdapter, DriverType, Software, Flags, pFeatureLevels, FeatureLevels, SDKVersion, ppDevice, pFeatureLevel, ppImmediateContext);
-            SendMessageW(hwnd, WM_GRAPHICS_INITIALIZE, (UINT_PTR)*ppImmediateContext, 0);
+
+            graphicCreatMessager = [context = *ppImmediateContext]()
+            {
+                auto hwnd = InitWindow(dllHandle);
+                SendMessageW(hwnd, WM_GRAPHICS_INITIALIZE, (UINT_PTR)context, 0);
+            };
+            //graphicCreatMessager();
 
             auto vTable = *(CreateRenderTargetView**)(*ppDevice);
             DWORD oldrights, newrights = PAGE_READWRITE;
             VirtualProtect(&vTable[3 + 6], sizeof(CreateRenderTargetView), newrights, &oldrights);
-            originalCreateRenderTargetView = vTable[3 + 6];
+            static auto originalCreateRenderTargetView = vTable[3 + 6];
             vTable[3 + 6] = [](ID3D11Device* device, ID3D11Resource* pResource, const D3D11_RENDER_TARGET_VIEW_DESC* pDesc, ID3D11RenderTargetView** ppRTView)
             {
-                SendMessageW(hwnd, WM_NEW_RENDER_TEXTURE, (UINT_PTR)pResource, 0);
+                // TODO: 例外ケア
+                Graphics::AddRenderTexture(pResource);
                 return originalCreateRenderTargetView(device, pResource, pDesc, ppRTView);
             };
             return hr;
         });
 
-    hwnd = InitWindow(handle);
 }
 
 extern "C" __declspec(dllexport) void WINAPI OnPluginFinish(HINSTANCE haneld) {}
