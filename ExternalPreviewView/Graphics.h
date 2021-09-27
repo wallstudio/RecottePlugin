@@ -5,6 +5,7 @@
 #include <rpc.h>
 #include <string>
 #include <set>
+#include <d3dcompiler.h>
 #include <functional>
 #include <chrono>
 #include <wrl/client.h>
@@ -12,14 +13,16 @@
 #include <d3d12.h>
 #include <dxgi1_6.h>
 #include <D3Dcommon.h>
+#include <DirectXMath.h>
 #pragma comment(lib, "d3d11.lib")
 #pragma comment(lib, "d3d12.lib")
 #pragma comment(lib, "dxgi.lib")
+#pragma comment(lib, "d3dcompiler.lib")
+
 
 template<typename T>
 using ComPtr = Microsoft::WRL::ComPtr<T>;
-
-DEFINE_GUID(PLUGIN_DX_RESOURCE, );
+using namespace DirectX;
 
 class Graphics
 {
@@ -31,6 +34,11 @@ class Graphics
     ComPtr<ID3D11DeviceContext> context;
     ComPtr<IDXGISwapChain1> swapchain;
     ComPtr<ID3D11RenderTargetView> rtView;
+    ComPtr<ID3D11Buffer> vertexBuffer;
+    ComPtr<ID3D11InputLayout> vertexLayout;
+    ComPtr<ID3D11ShaderResourceView> srView;
+    ComPtr<ID3D11VertexShader> vs;
+    ComPtr<ID3D11PixelShader> ps;
 
     HRESULT ThrowIfError(HRESULT hr)
     {
@@ -93,6 +101,43 @@ public:
 
         ThrowIfError(device->CreateRenderTargetView(swapchainBuffer.Get(), nullptr, &rtView));
 
+        XMFLOAT3 vertices[] =
+        {
+            XMFLOAT3(0.0f, 0.0f, 0.5f), XMFLOAT3(0.0f, 1.0f, 0.5f), XMFLOAT3(1.0f, 1.0f, 0.5f),
+            XMFLOAT3(0.0f, 0.0f, 0.5f), XMFLOAT3(1.0f, 1.0f, 0.5f), XMFLOAT3(1.0f, 0.0f, 0.5f),
+        };
+        D3D11_BUFFER_DESC vertexBufferDesc = {
+            .ByteWidth = sizeof(XMFLOAT3) * 6,
+            .Usage = D3D11_USAGE_DEFAULT,
+            .BindFlags = D3D11_BIND_VERTEX_BUFFER,
+            .CPUAccessFlags = 0,
+        };
+        D3D11_SUBRESOURCE_DATA subResourceData = { .pSysMem = vertices };
+        ThrowIfError(device->CreateBuffer(&vertexBufferDesc, &subResourceData, &vertexBuffer));
+
+
+        ComPtr<ID3DBlob> vsBlob, psBlob, error;
+        std::string code = 
+            //"Texture2D t : register(t0);\n"
+            //"SamplerState s : register(s0);\n"
+            "float4 VS(float4 pos : POSITION) : SV_POSITION { return pos; }\n"
+            //"float4 PS(float4 pos : SV_POSITION) : SV_Target { return t.Sample(s, pos.xy); };";
+            "float4 PS(float4 pos : SV_POSITION) : SV_Target { return float4(1, 0, 0, 1); };";
+        try
+        {
+            ThrowIfError(D3DCompile(code.data(), code.size(), nullptr, nullptr, nullptr, "VS", "vs_4_0", 0, 0, &vsBlob, &error));
+            ThrowIfError(device->CreateVertexShader(vsBlob->GetBufferPointer(), vsBlob->GetBufferSize(), nullptr, &vs));
+            ThrowIfError(D3DCompile(code.data(), code.size(), nullptr, nullptr, nullptr, "PS", "ps_4_0", 0, 0, &psBlob, &error));
+            ThrowIfError(device->CreatePixelShader(psBlob->GetBufferPointer(), psBlob->GetBufferSize(), nullptr, &ps));
+        }
+        catch (...)
+        {
+            throw std::exception((char*)error->GetBufferPointer());
+        }
+
+        D3D11_INPUT_ELEMENT_DESC layout[] = { { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 }, };
+        ThrowIfError(device->CreateInputLayout(layout, _countof(layout), vsBlob->GetBufferPointer(), vsBlob->GetBufferSize(), &vertexLayout));
+
         SetTimer(hwnd, 334, 1000 * 1 / 60, nullptr);
     }
 
@@ -106,6 +151,8 @@ public:
 
     inline void Render()
     {
+        context->OMSetRenderTargets(1, rtView.GetAddressOf(), nullptr);
+
         RECT windowRect;
         GetClientRect(hwnd, &windowRect);
         D3D11_VIEWPORT viewPort = {
@@ -124,12 +171,36 @@ public:
 
         for (auto& texture : capturedTextures)
         {
-            // TODO: 参照数1のもの（Pluginで握ってるだけの）は除外する
-            // https://docs.microsoft.com/ja-jp/windows/win32/api/unknwn/nf-unknwn-iunknown-release#return-value
+            //texture->AddRef();
+            //if (texture->Release() == 0)
+            //{
+            //    std::remove(texture, capturedTextures);
+            //}
+
             D3D11_TEXTURE2D_DESC desc;
             texture->GetDesc(&desc);
             OutputDebugStringW(std::format(L"{}x{} {}\n", desc.Width, desc.Height, (int)desc.Format).c_str());
         }
+        static auto index = 0;
+        index = (index + 1) % capturedTextures.size();
+        auto texture = *std::next(capturedTextures.begin(), index);
+        D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {
+            .Format = DXGI_FORMAT::DXGI_FORMAT_R8G8B8A8_UNORM,
+            .ViewDimension = D3D11_SRV_DIMENSION::D3D10_1_SRV_DIMENSION_TEXTURE2D,
+            .Texture2D = { .MostDetailedMip = 0, .MipLevels = 1, },
+        };
+        //ThrowIfError(device->CreateShaderResourceView(texture.Get(), &srvDesc, &srView)); // CreateTexture にHookして D3D11_BIND_SHADER_RESOURCE すれば通る
+
+        UINT stride = sizeof(XMFLOAT3);
+        UINT offset = 0;
+        context->IASetVertexBuffers(0, 1, vertexBuffer.GetAddressOf(), &stride, &offset);
+        context->IASetInputLayout(vertexLayout.Get());
+        context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+        
+        context->VSSetShader(vs.Get(), nullptr, 0);
+        context->PSSetShader(ps.Get(), nullptr, 0);
+        //context->PSSetShaderResources(0, 1, &srView);
+        context->Draw(6, 0);
 
         swapchain->Present(0, 0);
     }
