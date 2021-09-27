@@ -1,4 +1,4 @@
-﻿#define WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
 #include <comdef.h>
 #include "../HookHelper/HookHelper.h"
@@ -105,7 +105,7 @@ HWND InitWindow(HINSTANCE hInstance)
         nullptr);
     if (!hwnd) throw std::wstring(L"fail create window");
 
-    ShowWindow(hwnd, SW_SHOW);
+    ShowWindow(hwnd, SW_MINIMIZE);
     //SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
     return hwnd;
 }

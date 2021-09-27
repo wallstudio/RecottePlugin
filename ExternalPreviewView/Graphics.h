@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
 #include <comdef.h>
@@ -268,6 +268,7 @@ public:
                 texture->AddRef();
                 if (texture->Release() == 1)
                 {
+                    // TODO: 本体が掴んでいるInterfaceがこれじゃないのでこれじゃダメ（このリークが避けられない…）
                     //capturedTextures.erase(texture);
                 }
             }
@@ -283,16 +284,19 @@ public:
             context->PSSetShaderResources(0, 1, srView.GetAddressOf());
             context->PSSetSamplers(0, 1, sampler.GetAddressOf());
             context->VSSetConstantBuffers(0, 1, cBuffer.GetAddressOf());
+            context->VSSetShader(vs.Get(), nullptr, 0);
+            context->PSSetShader(ps.Get(), nullptr, 0);
+            context->Draw(6, 0);
         }
-        context->VSSetShader(vs.Get(), nullptr, 0);
-        context->PSSetShader(ps.Get(), nullptr, 0);
-        context->Draw(6, 0);
 
         auto presentResult = swapchain->Present(0, 0);
         if (presentResult != DXGI_STATUS_OCCLUDED) // Minimize
         {
             ThrowIfError(presentResult);
         }
+
+        context->PSSetShaderResources(0, 0, nullptr);
+        context->Flush();
     }
 
     inline void AddRenderTexture(ComPtr<ID3D11Resource> resource)
