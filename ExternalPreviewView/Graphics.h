@@ -2,18 +2,16 @@
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
 #include <comdef.h>
-#include <rpc.h>
 #include <string>
 #include <set>
-#include <d3dcompiler.h>
-#include <functional>
-#include <chrono>
 #include <wrl/client.h>
+
 #include <d3d11_4.h>
 #include <d3d12.h>
 #include <dxgi1_6.h>
 #include <D3Dcommon.h>
 #include <DirectXMath.h>
+#include <d3dcompiler.h>
 #pragma comment(lib, "d3d11.lib")
 #pragma comment(lib, "d3d12.lib")
 #pragma comment(lib, "dxgi.lib")
@@ -26,6 +24,8 @@ using namespace DirectX;
 
 class Graphics
 {
+    // https://github.com/walbourn/directx-sdk-samples/tree/master/Direct3D11Tutorials
+
     struct Vertex
     {
         XMFLOAT3 position;
@@ -33,10 +33,7 @@ class Graphics
         XMFLOAT4 uv;
     };
 
-    // https://github.com/walbourn/directx-sdk-samples/tree/master/Direct3D11Tutorials
-
     HWND hwnd;
-    UINT_PTR timer;
     ComPtr<IDXGIFactory2> factory;
     ComPtr<IDXGIAdapter> adapter;
     ComPtr<ID3D11Device> device;
@@ -187,14 +184,10 @@ public:
         CreateConstant(device, cBuffer);
 
         Resize();
-               
-        timer = SetTimer(hwnd, 334, 1000 * 1 / 90, nullptr);
     }
 
     inline ~Graphics()
     {
-        KillTimer(hwnd, timer);
-        DestroyWindow(hwnd);
         context->ClearState();
         context->Flush();
     }
