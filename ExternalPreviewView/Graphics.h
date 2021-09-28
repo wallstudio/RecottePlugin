@@ -22,8 +22,6 @@ using Microsoft::WRL::ComPtr;
 using namespace DirectX;
 
 
-const char greet[] = "GREETING";
-
 class Graphics
 {
     // https://github.com/walbourn/directx-sdk-samples/tree/master/Direct3D11Tutorials

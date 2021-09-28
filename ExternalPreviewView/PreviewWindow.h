@@ -82,6 +82,7 @@ public:
 
 };
 
+
 class PreviewWindow : public Window
 {
 private:
