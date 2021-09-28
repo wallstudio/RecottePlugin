@@ -50,7 +50,7 @@ END
 // Bitmap
 //
 
-IDB_BITMAP1             BITMAP                  "img\\popup.bmp"
+BUTTON_POPUP            BITMAP                  "img\\popup.bmp"
 
 #endif    // “ú–{Œê (“ú–{) resources
 /////////////////////////////////////////////////////////////////////////////

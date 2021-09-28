@@ -3,6 +3,7 @@
 // ExternalPreviewView.rc ‚ÅŽg—p
 //
 #define IDB_BITMAP1                     101
+#define BUTTON_POPUP                    101
 
 // Next default values for new objects
 // 
