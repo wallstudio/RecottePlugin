@@ -1,6 +1,7 @@
 ﻿#define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
 #include <comdef.h>
+#include "resource.h"
 #include "../HookHelper/HookHelper.h"
 #include "Graphics.h"
 
@@ -18,25 +19,32 @@ HWND _CreateWindowExW(DWORD dwExStyle, LPCWSTR lpClassName, LPCWSTR lpWindowName
 
     if (lpWindowName != nullptr && std::wstring(lpWindowName) == L"1画面分進める")
     {
-        auto hwnd = g_Original_CreateWindowExW(dwExStyle, L"BUTTON", L"uh_preview_popup", dwStyle, X + 10, 0, nWidth, nHeight, hWndParent, hMenu, hInstance, lpParam);
+        auto hwnd = g_Original_CreateWindowExW(dwExStyle, L"BUTTON", L"uh_preview_popup", dwStyle, 1, 1, 26, 26, hWndParent, hMenu, hInstance, lpParam);
         WNDPROC proc = [](HWND hwnd, UINT m, WPARAM w, LPARAM l) -> LRESULT
         {
-            if (m == WM_LBUTTONUP)
+            static auto buttonPopupBitmap = LoadBitmap(GetModuleHandleW(L"ExternalPreviewView"), MAKEINTRESOURCE(BUTTON_POPUP));
+            switch (m)
             {
-                MessageBoxW(nullptr, L"プレビュー画面をポップアウトします", L"RecottePlugin", MB_OK);
+            case WM_LBUTTONUP:
+                //MessageBoxW(nullptr, L"プレビュー画面をポップアウトします", L"RecottePlugin", MB_OK);
                 graphicCreatMessager();
-            }
-            else if (m == WM_PAINT)
-            {
+                break;
+            case WM_PAINT:
                 PAINTSTRUCT ps;
-                auto hdc = BeginPaint(hwnd, &ps);
-                RECT r = { 0, 0, 28, 28 };
-                FillRect(hdc, &r, (HBRUSH)GetStockObject(GRAY_BRUSH));
-                SetBkColor(hdc, RGB(0x88, 0x88, 0x88));
-                SetTextColor(hdc, RGB(0xFF, 0xFF, 0xFF));
-                auto markText = L"POP";
-                TextOutW(hdc, 0, 0, markText, lstrlenW(markText));
-                EndPaint(hwnd, &ps);
+                {
+                    auto hdc = BeginPaint(hwnd, &ps);
+                    auto memoryHdc = CreateCompatibleDC(hdc);
+                    SetBkMode(hdc, TRANSPARENT);
+                    SelectObject(memoryHdc, buttonPopupBitmap);
+                    BitBlt(hdc, 0, 0, 26, 26, memoryHdc, 0, 0, SRCCOPY);
+                    DeleteDC(memoryHdc);
+
+                    EndPaint(hwnd, &ps);
+                }
+                break;
+            case WM_DESTROY:
+                DeleteObject(buttonPopupBitmap);
+                break;
             }
             return DefWindowProcW(hwnd, m, w, l);
         };
