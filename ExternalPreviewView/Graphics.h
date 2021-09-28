@@ -22,9 +22,50 @@ using Microsoft::WRL::ComPtr;
 using namespace DirectX;
 
 
+const char greet[] = "GREETING";
+
 class Graphics
 {
     // https://github.com/walbourn/directx-sdk-samples/tree/master/Direct3D11Tutorials
+
+    static inline const char SHADER_CODE[] = R"(
+Texture2D _MainTex : register(t0);
+SamplerState _MainTexSampler : register(s0);
+cbuffer _CB : register(b0)
+{
+    float4x4 transform;
+};
+
+struct VS_INPUT
+{
+    float3 position : POSITION;
+    float4 color : COLOR;
+    float4 uv : TEXCOORD0;
+};
+struct PS_INPUT
+{
+    float4 position : SV_POSITION;
+    float4 color : COLOR;
+    float4 uv : TEXCOORD0;
+};
+
+PS_INPUT VS( VS_INPUT input )
+{
+    // TODO: MVP?
+    PS_INPUT output;
+    output.position = mul(float4(input.position, 1), transform);
+    output.color = input.color;
+    output.uv = input.uv;
+    return output;
+}
+float4 PS( PS_INPUT input) : SV_Target
+{
+    float4 color = float4(1, 1, 1, 1);
+    color *= input.color;
+    color *= _MainTex.Sample(_MainTexSampler, input.uv.xy);
+    return color;
+}
+        )";
 
     struct Vertex
     {
@@ -63,49 +104,11 @@ class Graphics
     static inline void CreateShader(ComPtr<ID3D11Device> device, ComPtr<ID3D11VertexShader>& vs, ComPtr<ID3D11PixelShader>& ps, ComPtr<ID3DBlob>& vsBlob)
     {
         ComPtr<ID3DBlob> psBlob, error;
-        char code[] = R"(
-Texture2D _MainTex : register(t0);
-SamplerState _MainTexSampler : register(s0);
-cbuffer _CB : register(b0)
-{
-    float4x4 transform;
-};
-
-struct VS_INPUT
-{
-    float3 position : POSITION;
-    float4 color : COLOR;
-    float4 uv : TEXCOORD0;
-};
-struct PS_INPUT
-{
-    float4 position : SV_POSITION;
-    float4 color : COLOR;
-    float4 uv : TEXCOORD0;
-};
-
-PS_INPUT VS( VS_INPUT input )
-{
-    // TODO: MVP?
-    PS_INPUT output;
-    output.position = mul(float4(input.position, 1), transform);
-    output.color = input.color;
-    output.uv = input.uv;
-    return output;
-}
-float4 PS( PS_INPUT input) : SV_Target
-{
-    float4 color = float4(1, 1, 1, 1);
-    color *= input.color;
-    color *= _MainTex.Sample(_MainTexSampler, input.uv.xy);
-    return color;
-}
-        )";
         try
         {
-            ThrowIfError(D3DCompile(code, sizeof(code), nullptr, nullptr, nullptr, "VS", "vs_4_0", 0, 0, &vsBlob, &error));
+            ThrowIfError(D3DCompile(SHADER_CODE, sizeof(SHADER_CODE), nullptr, nullptr, nullptr, "VS", "vs_4_0", 0, 0, &vsBlob, &error));
             ThrowIfError(device->CreateVertexShader(vsBlob->GetBufferPointer(), vsBlob->GetBufferSize(), nullptr, &vs));
-            ThrowIfError(D3DCompile(code, sizeof(code), nullptr, nullptr, nullptr, "PS", "ps_4_0", 0, 0, &psBlob, &error));
+            ThrowIfError(D3DCompile(SHADER_CODE, sizeof(SHADER_CODE), nullptr, nullptr, nullptr, "PS", "ps_4_0", 0, 0, &psBlob, &error));
             ThrowIfError(device->CreatePixelShader(psBlob->GetBufferPointer(), psBlob->GetBufferSize(), nullptr, &ps));
         }
         catch (...)

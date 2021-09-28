@@ -81,8 +81,8 @@ extern "C" __declspec(dllexport) void WINAPI OnPluginStart(HINSTANCE handle)
             static CreateRenderTargetView createRenderTargetView = vTable[3 + 6];
             auto proc = (CreateRenderTargetView)[](ID3D11Device* device, ID3D11Resource* pResource, const D3D11_RENDER_TARGET_VIEW_DESC* pDesc, ID3D11RenderTargetView** ppRTView)
             {
-                return createRenderTargetView(device, pResource, pDesc, ppRTView);
                 Graphics::AddRenderTexture(pResource);
+                return createRenderTargetView(device, pResource, pDesc, ppRTView);
             };
             RecottePluginFoundation::MemoryCopyAvoidingProtection(&vTable[3 + 6], &proc, sizeof(CreateRenderTargetView));
             return hr;
