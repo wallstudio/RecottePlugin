@@ -45,7 +45,7 @@ std::filesystem::path ResolveRecotteShaderDirctory()
 		return std::filesystem::path(buffer.data());
 	}
 
-	static auto pluginDir = RecottePluginFoundation::ResolvePluginPath();
+	static auto pluginDir = RecottePluginManager::ResolvePluginPath();
 	return pluginDir / "RecotteShader";
 }
 
@@ -124,10 +124,10 @@ HANDLE _CreateFileW(LPCWSTR lpFileName, DWORD dwDesiredAccess, DWORD dwShareMode
 
 extern "C" __declspec(dllexport) void WINAPI OnPluginStart(HINSTANCE handle)
 {
-	g_Original_FindFirstFileW = RecottePluginFoundation::OverrideIATFunction("kernel32.dll", "FindFirstFileW", _FindFirstFileW);
-	g_Original_FindNextFileW = RecottePluginFoundation::OverrideIATFunction("kernel32.dll", "FindNextFileW", _FindNextFileW);
-	g_Original_FindClose = RecottePluginFoundation::OverrideIATFunction("kernel32.dll", "FindClose", _FindClose);
-	g_Original_CreateFileW = RecottePluginFoundation::OverrideIATFunction("kernel32.dll", "CreateFileW", _CreateFileW);
+	g_Original_FindFirstFileW = RecottePluginManager::OverrideIATFunction("kernel32.dll", "FindFirstFileW", _FindFirstFileW);
+	g_Original_FindNextFileW = RecottePluginManager::OverrideIATFunction("kernel32.dll", "FindNextFileW", _FindNextFileW);
+	g_Original_FindClose = RecottePluginManager::OverrideIATFunction("kernel32.dll", "FindClose", _FindClose);
+	g_Original_CreateFileW = RecottePluginManager::OverrideIATFunction("kernel32.dll", "CreateFileW", _CreateFileW);
 }
 
 extern "C" __declspec(dllexport) void WINAPI OnPluginFinish(HINSTANCE haneld) {}

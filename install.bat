@@ -13,6 +13,6 @@ set PROJECT=%PROJECT:"=%
 
 cmd /c del /q "d3d11.dll"
 cmd /c rd /S /Q "Plugins"
-cmd /c mklink "d3d11.dll" "%PROJECT%RecottePluginFoundation.dll"
+cmd /c mklink "d3d11.dll" "%PROJECT%RecottePluginManager.dll"
 
 pause

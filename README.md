@@ -30,7 +30,7 @@ Cドライブ
       └ RecottePlugin
         ├ README.md
         ├ install.bat
-        ├ RecottePluginFoundation.dll
+        ├ RecottePluginManager.dll
         └ …
 ```
 
@@ -40,11 +40,11 @@ Cドライブ
 
 ## 機能
 
-#### RecottePluginFoundation
+#### RecottePluginManager
 
 PluginをロードするためのPluginです。
 
-`RecottePluginFoundation.dll`は`install.bat`によって`d3d11.dll`としてRecotteStudioのインストールフォルダにインストールされます。
+`RecottePluginManager.dll`は`install.bat`によって`d3d11.dll`としてRecotteStudioのインストールフォルダにインストールされます。
 シンボリックリンクの形としてインストールされるので元のファイルも削除しないでください。
 
 これは`C:\Windows\System32\d3d11.dll`のProxyDLLとして動作します。
@@ -96,7 +96,7 @@ PCの型番: GARAGARA-3000-BT
 
 `std::format`とか使ってるので少し前のバージョンでも動かないと思います。
 
-通常、`RecottePluginFoundation.dll`は`~\RecottePlugin`以下のPluginをロードしますが、環境変数`RECOTTE_PLUGIN_DIR`にディレクトリを設定しておくことで別ディレクトリからロードさせることもできます。
+通常、`RecottePluginManager.dll`は`~\RecottePlugin`以下のPluginをロードしますが、環境変数`RECOTTE_PLUGIN_DIR`にディレクトリを設定しておくことで別ディレクトリからロードさせることもできます。
 
 ![](img/env.png)
 

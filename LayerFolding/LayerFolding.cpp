@@ -203,13 +203,13 @@ LRESULT Hook_Dispatch(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
 
 extern "C" __declspec(dllexport) void WINAPI OnPluginStart(HINSTANCE handle)
 {
-	g_Original_CreateWindowExW = RecottePluginFoundation::OverrideIATFunction("user32.dll", "CreateWindowExW", _CreateWindowExW);
+	g_Original_CreateWindowExW = RecottePluginManager::OverrideIATFunction("user32.dll", "CreateWindowExW", _CreateWindowExW);
 
-	using namespace RecottePluginFoundation::Instruction;
+	using namespace RecottePluginManager::Instruction;
 
 	// 話者レイヤー
 	{
-		auto target = RecottePluginFoundation::SearchAddress([](std::byte* address)
+		auto target = RecottePluginManager::SearchAddress([](std::byte* address)
 		{
 			static auto part0 = std::vector<unsigned char>
 			{
@@ -247,12 +247,12 @@ extern "C" __declspec(dllexport) void WINAPI OnPluginStart(HINSTANCE handle)
 			NOP, NOP, NOP, NOP, NOP, NOP, NOP, // nop x7
 		};
 		*(void**)&part3[3 + 2] = &Hook_CalcLayerHeight;
-		RecottePluginFoundation::MemoryCopyAvoidingProtection(target, part3, sizeof(part3));
+		RecottePluginManager::MemoryCopyAvoidingProtection(target, part3, sizeof(part3));
 	}
 
 	// 注釈レイヤー
 	{
-		auto target = RecottePluginFoundation::SearchAddress([](std::byte* address)
+		auto target = RecottePluginManager::SearchAddress([](std::byte* address)
 		{
 			static auto part0 = std::vector<unsigned char>
 			{
@@ -286,12 +286,12 @@ extern "C" __declspec(dllexport) void WINAPI OnPluginStart(HINSTANCE handle)
 			NOP, NOP, NOP, NOP, NOP, NOP, NOP, NOP, NOP, NOP, NOP, NOP, NOP, NOP, NOP,
 		};
 		*(void**)&part3[3 + 2] = &Hook_CalcLayerHeight2;
-		RecottePluginFoundation::MemoryCopyAvoidingProtection(target, part3, sizeof(part3));
+		RecottePluginManager::MemoryCopyAvoidingProtection(target, part3, sizeof(part3));
 	}
 
 	// 映像・音声レイヤー
 	{
-		auto target = RecottePluginFoundation::SearchAddress([](std::byte* address)
+		auto target = RecottePluginManager::SearchAddress([](std::byte* address)
 			{
 				static auto part0 = std::vector<unsigned char> // 14
 				{
@@ -324,12 +324,12 @@ extern "C" __declspec(dllexport) void WINAPI OnPluginStart(HINSTANCE handle)
 			NOP, NOP, NOP,
 		};
 		*(void**)&part3[3 + 2] = &Hook_CalcLayerHeight3;
-		RecottePluginFoundation::MemoryCopyAvoidingProtection(target, part3, sizeof(part3));
+		RecottePluginManager::MemoryCopyAvoidingProtection(target, part3, sizeof(part3));
 	}
 
 	// HitTest
 	{
-		auto target = RecottePluginFoundation::SearchAddress([](std::byte* address)
+		auto target = RecottePluginManager::SearchAddress([](std::byte* address)
 			{
 				static unsigned char part0[] =
 				{
@@ -367,12 +367,12 @@ extern "C" __declspec(dllexport) void WINAPI OnPluginStart(HINSTANCE handle)
 			NOP, NOP, NOP,
 		};
 		*(void**)&part3[2] = &Hook_HitTest;
-		RecottePluginFoundation::MemoryCopyAvoidingProtection(target, part3, sizeof(part3));
+		RecottePluginManager::MemoryCopyAvoidingProtection(target, part3, sizeof(part3));
 	}
 
 	// MessageDispacher（解析用）
 	{
-		auto target = RecottePluginFoundation::SearchAddress([](std::byte* address)
+		auto target = RecottePluginManager::SearchAddress([](std::byte* address)
 			{
 				static unsigned char part0[] =
 				{
@@ -417,7 +417,7 @@ extern "C" __declspec(dllexport) void WINAPI OnPluginStart(HINSTANCE handle)
 			NOP, NOP, NOP,
 		};
 		*(void**)&part3[3 + 3 + 2 + 3 + 2] = &Hook_Dispatch;
-		RecottePluginFoundation::MemoryCopyAvoidingProtection(target, part3, sizeof(part3));
+		RecottePluginManager::MemoryCopyAvoidingProtection(target, part3, sizeof(part3));
 	}
 }
 

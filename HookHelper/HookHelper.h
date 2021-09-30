@@ -7,7 +7,7 @@
 #include <filesystem>
 #include <format>
 
-#if !defined(HOOK_HELPER) && !defined(RECOTTEPLUGINFOUNDATION_EXPORTS)
+#if !defined(HOOK_HELPER) && !defined(RecottePluginManager_EXPORTS)
 #ifdef _DEBUG
 #pragma comment(lib, "../x64/Debug/HookHelper.lib")
 #else
@@ -16,7 +16,7 @@
 #endif
 
 
-namespace RecottePluginFoundation
+namespace RecottePluginManager
 {
 	const auto EMSG_NOT_FOUND_ADDRESS = L"上書き対象の機能が見つけられません\r\nRecotteStudio本体のアップデートにより互換性がなくなった可能性があります";
 	const auto EMSG_NOT_FOUND_APP_DIR = L"RecotteStudio本体がインストールされたフォルダが見つかりませんでした {}";

@@ -33,24 +33,24 @@ Gdiplus::GpStatus Hook_DrawTimeline_GdipGraphicsClear(Gdiplus::GpGraphics* graph
 	{
 		try
 		{
-			static auto pluginDir = RecottePluginFoundation::ResolvePluginPath();
+			static auto pluginDir = RecottePluginManager::ResolvePluginPath();
 			auto file = pluginDir / "skin.png";
 			if (!std::filesystem::exists(file))
 			{
-				static auto rsp = RecottePluginFoundation::ResolveApplicationDir() / "models" / "2D-Maki_shihuku.rsp";
+				static auto rsp = RecottePluginManager::ResolveApplicationDir() / "models" / "2D-Maki_shihuku.rsp";
 				if (!std::filesystem::exists(rsp)) throw std::format(EMSG_NOT_FOUND_DEFAULT_SKIN_RSP, rsp.wstring());
 
 				auto tmpDir = std::filesystem::temp_directory_path() / "RecottePlugin" / rsp.filename();
 				file = tmpDir / "action10_o.png";
 				if (!std::filesystem::exists(file))
 				{
-					auto packer = RecottePluginFoundation::ResolvePluginPath() / "Png2RspConverter.exe";
+					auto packer = RecottePluginManager::ResolvePluginPath() / "Png2RspConverter.exe";
 					if (!std::filesystem::exists(rsp)) throw std::format(EMSG_NOT_FOUND_RSP_PACKER, packer.wstring());
 
 					auto command = std::format("\"{}\" --unpack \"{}\" \"{}\"", packer.string(), rsp.string(), tmpDir.string());
 					OutputDebugStringA(std::format("{}\n", command).c_str());
 					auto result = std::system(std::format("\"{}\"", command).c_str()); // 全体を更に引用符で囲う必要がある
-					if (result != 0) throw std::format(EMSG_FILED_UNPACK, RecottePluginFoundation::AsciiToWide(command));
+					if (result != 0) throw std::format(EMSG_FILED_UNPACK, RecottePluginManager::AsciiToWide(command));
 				}
 			}
 			if (!std::filesystem::exists(file)) throw std::format(EMSG_NOT_FOUND_SKIN_FILE, file.wstring());
@@ -83,7 +83,7 @@ Gdiplus::GpStatus Hook_DrawTimeline_GdipGraphicsClear(Gdiplus::GpGraphics* graph
 
 uint64_t Hook_DrawTimeline_DrawLayerFoundation(void** drawInfo, float* xywh)
 {
-	using namespace RecottePluginFoundation;
+	using namespace RecottePluginManager;
 
 	auto graphics = (Gdiplus::GpGraphics**)drawInfo[29];
 	auto result = Offset<Gdiplus::GpStatus>(drawInfo[29], 8);
@@ -111,7 +111,7 @@ uint64_t Hook_DrawTimeline_DrawLayerFoundation(void** drawInfo, float* xywh)
 extern "C" __declspec(dllexport) void WINAPI OnPluginStart(HINSTANCE handle)
 {
 	{
-		auto target = RecottePluginFoundation::SearchAddress([&](std::byte* address)
+		auto target = RecottePluginManager::SearchAddress([&](std::byte* address)
 		{
 			static auto part0 = std::vector<unsigned char>
 			{
@@ -140,7 +140,7 @@ extern "C" __declspec(dllexport) void WINAPI OnPluginStart(HINSTANCE handle)
 			0x90, // nops
 		};
 		*(void**)(part3.data() + 2) = &Hook_DrawTimeline_GdipGraphicsClear;
-		RecottePluginFoundation::MemoryCopyAvoidingProtection(target, part3.data(), part3.size());
+		RecottePluginManager::MemoryCopyAvoidingProtection(target, part3.data(), part3.size());
 	}
 
 	{
@@ -152,7 +152,7 @@ extern "C" __declspec(dllexport) void WINAPI OnPluginStart(HINSTANCE handle)
 			0x48, 0x8D, 0x55, 0x18, // lea rdx, [rbp + 320h + var_308]
 			0x48, 0x8B, 0xCE, // mov rcx, rsi
 		};
-		auto target = RecottePluginFoundation::SearchAddress([&](std::byte* address)
+		auto target = RecottePluginManager::SearchAddress([&](std::byte* address)
 		{
 			if (0 != memcmp(address, part0.data(), part0.size())) return false;
 			address += part0.size();
@@ -189,7 +189,7 @@ extern "C" __declspec(dllexport) void WINAPI OnPluginStart(HINSTANCE handle)
 			0x90, // nop
 		};
 		*(void**)(part3.data() + 2) = &Hook_DrawTimeline_DrawLayerFoundation;
-		RecottePluginFoundation::MemoryCopyAvoidingProtection(target, part3.data(), part3.size());
+		RecottePluginManager::MemoryCopyAvoidingProtection(target, part3.data(), part3.size());
 	}
 }
 

@@ -53,7 +53,7 @@ extern "C" __declspec(dllexport) void WINAPI OnPluginStart(HINSTANCE handle)
     static auto module = handle;
 
     // PreviewWidnowの機能ボタン
-    static decltype(&CreateWindowExW) createWindowExW = RecottePluginFoundation::OverrideIATFunction<decltype(&CreateWindowExW)>(
+    static decltype(&CreateWindowExW) createWindowExW = RecottePluginManager::OverrideIATFunction<decltype(&CreateWindowExW)>(
         "user32.dll", "CreateWindowExW",
         [](DWORD dwExStyle, LPCWSTR lpClassName, LPCWSTR lpWindowName, DWORD dwStyle, int X, int Y, int nWidth, int nHeight, HWND hWndParent, HMENU hMenu, HINSTANCE hInstance, LPVOID lpParam)
         {
@@ -61,7 +61,7 @@ extern "C" __declspec(dllexport) void WINAPI OnPluginStart(HINSTANCE handle)
         });
 
     // DX Deviceを掠め取る
-    static decltype(&D3D11CreateDevice) d3D11CreateDevice = RecottePluginFoundation::OverrideIATFunction<decltype(&D3D11CreateDevice)>(
+    static decltype(&D3D11CreateDevice) d3D11CreateDevice = RecottePluginManager::OverrideIATFunction<decltype(&D3D11CreateDevice)>(
         "d3d11.dll", "D3D11CreateDevice",
         [](IDXGIAdapter* pAdapter, D3D_DRIVER_TYPE DriverType, HMODULE Software, UINT Flags, const D3D_FEATURE_LEVEL* pFeatureLevels, UINT FeatureLevels, UINT SDKVersion,
             ID3D11Device** ppDevice, D3D_FEATURE_LEVEL* pFeatureLevel, ID3D11DeviceContext** ppImmediateContext) -> HRESULT
@@ -85,7 +85,7 @@ extern "C" __declspec(dllexport) void WINAPI OnPluginStart(HINSTANCE handle)
                 }
                 return hr;
             };
-            RecottePluginFoundation::MemoryCopyAvoidingProtection(&vTable[3 + 6], &proc, sizeof(CreateRenderTargetView));
+            RecottePluginManager::MemoryCopyAvoidingProtection(&vTable[3 + 6], &proc, sizeof(CreateRenderTargetView));
             return hr;
         });
 }

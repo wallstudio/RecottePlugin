@@ -22,14 +22,14 @@ void OnAttach()
 {
 	try
 	{
-		static auto pluginsDirectroy = RecottePluginFoundation::ResolvePluginPath();
+		static auto pluginsDirectroy = RecottePluginManager::ResolvePluginPath();
 
 		auto pluginFiles = std::vector<std::filesystem::path>();
 		for (auto pluginFile : std::filesystem::directory_iterator(pluginsDirectroy))
 		{
 			auto s = pluginFile.path().extension().string();
 			if (pluginFile.path().extension().string() != ".dll") continue;
-			if (pluginFile.path().filename().string() == "RecottePluginFoundation.dll") continue;
+			if (pluginFile.path().filename().string() == "RecottePluginManager.dll") continue;
 			if (pluginFile.path().filename().string() == "d3d11.dll") continue;
 			if (pluginFile.is_directory()) continue;
 			pluginFiles.push_back(pluginFile.path());
@@ -47,10 +47,10 @@ void OnAttach()
 		for (auto& pluginFile : pluginFiles)
 		{
 			auto plugin = g_Plugins[pluginFile] = LoadLibraryA(pluginFile.string().c_str());
-			if (plugin == nullptr) throw std::format(EMSG_FAILED_PLUGIN_DLL, RecottePluginFoundation::GetLastErrorString(), pluginFile.wstring());
+			if (plugin == nullptr) throw std::format(EMSG_FAILED_PLUGIN_DLL, RecottePluginManager::GetLastErrorString(), pluginFile.wstring());
 
 			auto callback = (void (WINAPI*)(HINSTANCE))GetProcAddress(plugin, "OnPluginStart");
-			if (callback == nullptr) throw std::format(EMSG_FAILED_PLUGIN_STARR, RecottePluginFoundation::GetLastErrorString(), pluginFile.wstring());
+			if (callback == nullptr) throw std::format(EMSG_FAILED_PLUGIN_STARR, RecottePluginManager::GetLastErrorString(), pluginFile.wstring());
 
 			callback(hLibMine);
 		}
@@ -85,7 +85,7 @@ void OnDetach()
 			g_Plugins.erase(plugin.first);
 
 			auto callback = (void (WINAPI*)(HINSTANCE))GetProcAddress(plugin.second, "OnPluginFinish");
-			if (callback == nullptr) throw std::format(EMSG_FAILED_PLUGIN_FINISH, RecottePluginFoundation::GetLastErrorString(), plugin.first.wstring());
+			if (callback == nullptr) throw std::format(EMSG_FAILED_PLUGIN_FINISH, RecottePluginManager::GetLastErrorString(), plugin.first.wstring());
 
 			FreeLibrary(plugin.second);
 		}
