@@ -110,10 +110,10 @@ private:
     }
 
 public:
-    inline PreviewWindow(HINSTANCE module, const std::wstring windowClassName, const ComPtr<ID3D11Device> device, const ComPtr<ID3D11DeviceContext> context)
+    inline PreviewWindow(HINSTANCE module, const std::wstring windowClassName, const ComPtr<ID3D11Device> device, const ComPtr<ID3D11DeviceContext> context, ComPtr<ID3D11RenderTargetView> rtv)
         : Window(module, windowClassName, device, context)
     {
-        graphics.reset(new Graphics(hwnd, context.Get()));
+        graphics.reset(new Graphics(hwnd, context, rtv));
         timer = SetTimer(hwnd, 334, 1000 * 1 / 90, nullptr);
         //SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
     }
@@ -124,15 +124,16 @@ public:
 
 class PreviewWindowBuilder
 {
+    const HINSTANCE module;
     const ComPtr<ID3D11Device> device;
     const ComPtr<ID3D11DeviceContext> context;
-    const HINSTANCE module;
+    const ComPtr<ID3D11RenderTargetView> rtv;
     std::wstring windowClassName;
     std::shared_ptr<PreviewWindow> currentWindow;
 
 public:
-    inline PreviewWindowBuilder(const ComPtr<ID3D11Device> device, const ComPtr<ID3D11DeviceContext> context, const HINSTANCE module)
-        : device(device), context(context), module(module)
+    inline PreviewWindowBuilder(const HINSTANCE module, const ComPtr<ID3D11Device> device, const ComPtr<ID3D11DeviceContext> context, const ComPtr<ID3D11RenderTargetView> rtv)
+        : device(device), context(context), module(module), rtv(rtv)
     {
         windowClassName = std::format(L"ExternalPreviewWindow_{:08x}", (size_t)module);
         WNDCLASSEXW wcex = {
@@ -157,7 +158,7 @@ public:
 
     inline std::shared_ptr<PreviewWindow> Create()
     {
-        currentWindow.reset(new PreviewWindow(module, windowClassName, device, context));
+        currentWindow.reset(new PreviewWindow(module, windowClassName, device, context, rtv));
         currentWindow->onDestroy = [&]() { currentWindow.reset(); };
         return currentWindow;
     }

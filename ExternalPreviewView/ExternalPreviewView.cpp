@@ -74,15 +74,19 @@ extern "C" __declspec(dllexport) void WINAPI OnPluginStart(HINSTANCE handle)
                 Flags |= D3D11_CREATE_DEVICE_FLAG::D3D11_CREATE_DEVICE_DEBUG;
 #endif
             auto hr = d3D11CreateDevice(pAdapter, DriverType, Software, Flags, pFeatureLevels, FeatureLevels, SDKVersion, ppDevice, pFeatureLevel, ppImmediateContext);
-            builder.reset(new PreviewWindowBuilder(*ppDevice, *ppImmediateContext, module));
+            static ID3D11DeviceContext* context = *ppImmediateContext;
 
             // レンダーテクスチャ作成時に、それをを掠め取る
             auto vTable = *(CreateRenderTargetView**)(*ppDevice);
-            static CreateRenderTargetView createRenderTargetView = vTable[3 + 6];
+            static CreateRenderTargetView createRenderTargetView = vTable[3 + 6]; // CINTERFACE にしたい
             auto proc = (CreateRenderTargetView)[](ID3D11Device* device, ID3D11Resource* pResource, const D3D11_RENDER_TARGET_VIEW_DESC* pDesc, ID3D11RenderTargetView** ppRTView)
             {
-                Graphics::AddRenderTexture(pResource);
-                return createRenderTargetView(device, pResource, pDesc, ppRTView);
+                auto hr = createRenderTargetView(device, pResource, pDesc, ppRTView);
+                if (builder == nullptr && Graphics::CheckCapturableRTV(*ppRTView))
+                {
+                    builder.reset(new PreviewWindowBuilder(module, device, context, *ppRTView));
+                }
+                return hr;
             };
             RecottePluginFoundation::MemoryCopyAvoidingProtection(&vTable[3 + 6], &proc, sizeof(CreateRenderTargetView));
             return hr;

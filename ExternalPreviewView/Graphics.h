@@ -3,7 +3,6 @@
 #include <Windows.h>
 #include <comdef.h>
 #include <string>
-#include <set>
 #include <wrl/client.h>
 
 #include <d3d11_4.h>
@@ -81,13 +80,12 @@ float4 PS( PS_INPUT input) : SV_Target
     ComPtr<ID3D11RenderTargetView> rtView;
     ComPtr<ID3D11Buffer> vertexBuffer;
     ComPtr<ID3D11InputLayout> vertexLayout;
-    ComPtr<ID3D11ShaderResourceView> srView;
     ComPtr<ID3D11VertexShader> vs;
     ComPtr<ID3D11PixelShader> ps;
     ComPtr<ID3D11SamplerState> sampler;
     ComPtr<ID3D11Buffer> cBuffer;
     size_t index = 0;
-    static inline std::set<ComPtr<ID3D11Texture2D>> capturedTextures;
+    ComPtr<ID3D11ShaderResourceView> srView;
 
     static inline HRESULT ThrowIfError(HRESULT hr)
     {
@@ -165,8 +163,25 @@ float4 PS( PS_INPUT input) : SV_Target
         ThrowIfError(device->CreateBuffer(&desc, nullptr, &cBuffer));
     }
 
+    static inline void CreateTextureSRV(ComPtr<ID3D11Device> device, ComPtr<ID3D11RenderTargetView> rtv, ComPtr<ID3D11ShaderResourceView>& srv)
+    {
+        ComPtr<ID3D11Resource> resource;
+        rtv->GetResource(&resource);
+        ComPtr<ID3D11Texture2D> texture;
+        ThrowIfError(resource.As(&texture));
+
+        D3D11_TEXTURE2D_DESC desc;
+        texture->GetDesc(&desc);
+        D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {
+            .Format = desc.Format,
+            .ViewDimension = D3D11_SRV_DIMENSION::D3D11_SRV_DIMENSION_TEXTURE2D,
+            .Texture2D = {.MostDetailedMip = 0, .MipLevels = 1, },
+        };
+        ThrowIfError(device->CreateShaderResourceView(texture.Get(), &srvDesc, &srv));
+    }
+
 public:
-    inline Graphics(HWND hwnd, ID3D11DeviceContext* context) : hwnd(hwnd), context(context)
+    inline Graphics(HWND hwnd, ComPtr<ID3D11DeviceContext> context, ComPtr<ID3D11RenderTargetView> rtv) : hwnd(hwnd), context(context)
     {
 #if _DEBUG
         ComPtr<ID3D12Debug> debug;
@@ -183,6 +198,7 @@ public:
         CreateShader(device, vs, ps, vsBlob);
         CreateVertex(device, vsBlob, vertexBuffer, sampler, vertexLayout);
         CreateConstant(device, cBuffer);
+        CreateTextureSRV(device, rtv, srView);
 
         Resize();
     }
@@ -211,28 +227,22 @@ public:
         ThrowIfError(swapchain->GetBuffer(0, IID_PPV_ARGS(&swapchainBuffer)));
         ThrowIfError(device->CreateRenderTargetView(swapchainBuffer.Get(), nullptr, &rtView));
 
-        if (capturedTextures.size())
-        {
-            auto texture = *std::next(capturedTextures.begin(), index);
-            D3D11_TEXTURE2D_DESC desc;
-            texture->GetDesc(&desc);
-            auto texAspect = desc.Width / (double)desc.Height;
-            auto winAspect = swapchainDesc.Width / (double)swapchainDesc.Height;
-            FXMMATRIX matrix = winAspect > texAspect
-                ? XMMatrixScaling(1 / winAspect * texAspect, 1, 1)
-                : XMMatrixScaling(1, 1 * winAspect / texAspect, 1);
-            context->UpdateSubresource(cBuffer.Get(), 0, nullptr, &matrix, 0, 0);
-        }
+        // テクスチャのアス比から補正行列を作成
+        ComPtr<ID3D11Resource> resource;
+        srView->GetResource(&resource);
+        ComPtr<ID3D11Texture2D> texture;
+        ThrowIfError(resource.As(&texture));
+        D3D11_TEXTURE2D_DESC desc;
+        texture->GetDesc(&desc);
+        auto texAspect = desc.Width / (double)desc.Height;
+        auto winAspect = swapchainDesc.Width / (double)swapchainDesc.Height;
+        FXMMATRIX matrix = winAspect > texAspect
+            ? XMMatrixScaling(1 / winAspect * texAspect, 1, 1)
+            : XMMatrixScaling(1, 1 * winAspect / texAspect, 1);
+        context->UpdateSubresource(cBuffer.Get(), 0, nullptr, &matrix, 0, 0);
     }
 
-    inline void OnClick(int width, int height)
-    {
-        if (capturedTextures.size() > 0)
-        {
-            index = (index + 1) % capturedTextures.size();
-            Resize();
-        }
-    }
+    inline void OnClick(int width, int height) {}
 
     inline void Render()
     {
@@ -258,26 +268,8 @@ public:
         context->IASetInputLayout(vertexLayout.Get());
         context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
         
-        if (capturedTextures.size())
+        if (srView != nullptr)
         {
-            for (auto& texture : capturedTextures)
-            {
-                texture->AddRef();
-                if (texture->Release() == 1)
-                {
-                    // TODO: 本体が掴んでいるInterfaceがこれじゃないのでこれじゃダメ（このリークが避けられない…）
-                    //capturedTextures.erase(texture);
-                }
-            }
-            auto texture = *std::next(capturedTextures.begin(), index);
-            D3D11_TEXTURE2D_DESC desc;
-            texture->GetDesc(&desc);
-            D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {
-                .Format = desc.Format,
-                .ViewDimension = D3D11_SRV_DIMENSION::D3D11_SRV_DIMENSION_TEXTURE2D,
-                .Texture2D = {.MostDetailedMip = 0, .MipLevels = 1, },
-            };
-            ThrowIfError(device->CreateShaderResourceView(texture.Get(), &srvDesc, &srView));
             context->PSSetShaderResources(0, 1, srView.GetAddressOf());
             context->PSSetSamplers(0, 1, sampler.GetAddressOf());
             context->VSSetConstantBuffers(0, 1, cBuffer.GetAddressOf());
@@ -296,25 +288,26 @@ public:
         context->Flush();
     }
 
-    static inline void AddRenderTexture(ComPtr<ID3D11Resource> resource)
+    static inline bool CheckCapturableRTV(ComPtr<ID3D11RenderTargetView> rtv)
     {
+        ComPtr<ID3D11Resource> resource;
+        rtv->GetResource(&resource);
         ComPtr<ID3D11Texture2D> texture;
-        if (FAILED(resource->QueryInterface(IID_PPV_ARGS(&texture))))
+        if (FAILED(resource.As(&texture)))
         {
             OutputDebugStringW(std::format(L"not Texture2D\n").c_str());
-            return;
+            return false;
         }
 
         D3D11_TEXTURE2D_DESC desc;
         texture->GetDesc(&desc);
         if ((desc.BindFlags & D3D11_BIND_SHADER_RESOURCE) != D3D11_BIND_SHADER_RESOURCE)
         {
-            OutputDebugStringW(std::format(L"not RenderTexture {}x{} {}\n", desc.Width, desc.Height, (int)desc.Format).c_str());
-            return;
+            OutputDebugStringW(std::format(L"not available to srv texture {}x{} {}\n", desc.Width, desc.Height, (int)desc.Format).c_str());
+            return false;
         }
-        if (desc.Height != 1080) return;
 
-        capturedTextures.insert(texture);
+        return true;
     }
-
+// 
 };
