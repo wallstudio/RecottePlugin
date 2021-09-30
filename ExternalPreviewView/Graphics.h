@@ -23,8 +23,6 @@ using namespace DirectX;
 
 class Graphics
 {
-    // https://github.com/walbourn/directx-sdk-samples/tree/master/Direct3D11Tutorials
-
     static inline const char SHADER_CODE[] = R"(
 Texture2D _MainTex : register(t0);
 SamplerState _MainTexSampler : register(s0);
@@ -84,8 +82,8 @@ float4 PS( PS_INPUT input) : SV_Target
     ComPtr<ID3D11PixelShader> ps;
     ComPtr<ID3D11SamplerState> sampler;
     ComPtr<ID3D11Buffer> cBuffer;
-    size_t index = 0;
     ComPtr<ID3D11ShaderResourceView> srView;
+    size_t index = 0;
 
     static inline HRESULT ThrowIfError(HRESULT hr)
     {
@@ -284,8 +282,12 @@ public:
             ThrowIfError(presentResult);
         }
 
-        context->PSSetShaderResources(0, 0, nullptr);
-        context->Flush();
+        // こっちでContextから外しても、本体側でContextに差しっぱなしなので、こちらで使うときにRTV/SRV同時利用の警告が避けられない
+        // ID3D11DeviceContext::OMSetRenderTargets: Resource being set to OM RenderTarget slot 0 is still bound on input! [ STATE_SETTING WARNING #9: DEVICE_OMSETRENDERTARGETS_HAZARD]
+        // ID3D11 WARNING : ID3D11DeviceContext::OMSetRenderTargets[AndUnorderedAccessViews] : Forcing PS shader resource slot 0 to NULL.[STATE_SETTING WARNING #7: DEVICE_PSSETSHADERRESOURCES_HAZARD]
+        //context->PSSetShaderResources(0, 0, nullptr);
+        //context->OMSetRenderTargets(0, nullptr, nullptr);
+        //context->Flush();
     }
 
     static inline bool CheckCapturableRTV(ComPtr<ID3D11RenderTargetView> rtv)
