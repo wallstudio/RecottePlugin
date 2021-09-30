@@ -71,10 +71,6 @@ RecotteStudioが`*.txt`ファイルを読み込む際に、本来であれば`sh
 
 ファイルの中身から自動判定をしている都合、ファイル内の文字数が1、2文字の場合はうまくいかないかもしれません。対応している文字コードは[`MLang`に準じ](https://docs.microsoft.com/en-us/previous-versions/windows/internet-explorer/ie-developer/platform-apis/aa767865(v=vs.85))ます
 
-#### FileSystemBypass
-
-ユーザーフォルダ（`C:\Users\<you>\RecotteStudio\`）や環境変数で指定されたフォルダにインストールされたプラグインやRecotteShaderを読み込む機能です。
-
 #### RecotteShaderLoader
 
 [RecotteShader](https://github.com/wallstudio/RecotteShader)を読み込む機能です。

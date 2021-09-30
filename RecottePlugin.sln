@@ -24,7 +24,7 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "CustomSkin", "CustomSkin\Cu
 		{47156942-8EA3-4ADE-8EA6-68C5E02294D7} = {47156942-8EA3-4ADE-8EA6-68C5E02294D7}
 	EndProjectSection
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "FileSystemBypass", "FileSystemBypass\FileSystemBypass.vcxproj", "{5C68CCEF-80CA-4F38-B439-50ADC99DB917}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "RecotteShaderLoader", "RecotteShaderLoader\RecotteShaderLoader.vcxproj", "{5C68CCEF-80CA-4F38-B439-50ADC99DB917}"
 	ProjectSection(ProjectDependencies) = postProject
 		{47156942-8EA3-4ADE-8EA6-68C5E02294D7} = {47156942-8EA3-4ADE-8EA6-68C5E02294D7}
 	EndProjectSection
