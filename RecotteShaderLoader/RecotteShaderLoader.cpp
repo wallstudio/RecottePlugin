@@ -10,7 +10,6 @@
 
 
 decltype(&FindFirstFileW) g_Original_FindFirstFileW;
-decltype(&FindFirstFileExW) g_Original_FindFirstFileExW;
 decltype(&FindNextFileW) g_Original_FindNextFileW;
 decltype(&FindClose) g_Original_FindClose;
 decltype(&CreateFileW) g_Original_CreateFileW;
@@ -55,19 +54,19 @@ HANDLE _FindFirstFileW(LPCWSTR lpFileName, LPWIN32_FIND_DATAW lpFindFileData)
 {
 	auto result = g_Original_FindFirstFileW(lpFileName, lpFindFileData);
 
-	WIN32_FIND_DATAW data;
-	g_FileFindHandles[result] = std::shared_ptr<FilesProvider>(new FilesProvider(lpFileName));
-	for (auto handle = g_Original_FindFirstFileW(lpFileName, &data); handle != INVALID_HANDLE_VALUE && g_Original_FindNextFileW(handle, &data);)
-	{
-		g_FileFindHandles[result]->container.push_back(data);
-	}
-
 	// Plugin Effectを差し込む
 	static LPCWSTR types[]{ L"effects", L"text", L"transitions" };
 	for (auto type : types)
 	{
 		if (lpFileName == std::format(L"C:\\Program Files\\RecotteStudio\\effects\\{}\\*", type))
 		{
+			WIN32_FIND_DATAW data;
+			g_FileFindHandles[result] = std::shared_ptr<FilesProvider>(new FilesProvider(lpFileName));
+			for (auto handle = g_Original_FindFirstFileW(lpFileName, &data); handle != INVALID_HANDLE_VALUE && g_Original_FindNextFileW(handle, &data);)
+			{
+				g_FileFindHandles[result]->container.push_back(data);
+			}
+
 			static auto recotteShaderDir = ResolveRecotteShaderDirctory();
 			auto dir = recotteShaderDir / type;
 			dir = dir.lexically_relative(std::format(L"C:\\Program Files\\RecotteStudio\\effects\\{}", type));
@@ -83,14 +82,13 @@ HANDLE _FindFirstFileW(LPCWSTR lpFileName, LPWIN32_FIND_DATAW lpFindFileData)
 	return result;
 }
 
-HANDLE _FindFirstFileExW(LPCWSTR lpFileName, FINDEX_INFO_LEVELS fInfoLevelId, LPVOID lpFindFileData, FINDEX_SEARCH_OPS fSearchOp, LPVOID lpSearchFilter, DWORD dwAdditionalFlags)
-{
-	auto result = g_Original_FindFirstFileExW(lpFileName, fInfoLevelId, lpFindFileData, fSearchOp, lpSearchFilter, dwAdditionalFlags);
-	return result;
-}
-
 BOOL _FindNextFileW(HANDLE hFindFile, LPWIN32_FIND_DATAW lpFindFileData)
 {
+	if (!g_FileFindHandles.contains(hFindFile))
+	{
+		return g_Original_FindNextFileW(hFindFile, lpFindFileData);
+	}
+
 	auto provider = g_FileFindHandles[hFindFile];
 	auto isValid = provider->current < provider->container.size();
 	if (isValid)
@@ -104,7 +102,11 @@ BOOL _FindNextFileW(HANDLE hFindFile, LPWIN32_FIND_DATAW lpFindFileData)
 
 BOOL _FindClose(HANDLE hFindFile)
 {
-	g_FileFindHandles.erase(hFindFile);
+	if (g_FileFindHandles.contains(hFindFile))
+	{
+		g_FileFindHandles.erase(hFindFile);
+	}
+
 	return g_Original_FindClose(hFindFile);
 }
 
@@ -123,7 +125,6 @@ HANDLE _CreateFileW(LPCWSTR lpFileName, DWORD dwDesiredAccess, DWORD dwShareMode
 extern "C" __declspec(dllexport) void WINAPI OnPluginStart(HINSTANCE handle)
 {
 	g_Original_FindFirstFileW = RecottePluginFoundation::OverrideIATFunction("kernel32.dll", "FindFirstFileW", _FindFirstFileW);
-	g_Original_FindFirstFileExW = RecottePluginFoundation::OverrideIATFunction("kernel32.dll", "FindFirstFileExW", _FindFirstFileExW);
 	g_Original_FindNextFileW = RecottePluginFoundation::OverrideIATFunction("kernel32.dll", "FindNextFileW", _FindNextFileW);
 	g_Original_FindClose = RecottePluginFoundation::OverrideIATFunction("kernel32.dll", "FindClose", _FindClose);
 	g_Original_CreateFileW = RecottePluginFoundation::OverrideIATFunction("kernel32.dll", "CreateFileW", _CreateFileW);
