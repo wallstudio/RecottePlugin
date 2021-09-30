@@ -1,6 +1,7 @@
 ﻿#pragma once
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
+#include <set>
 #include <functional>
 #include "Graphics.h"
 
@@ -129,7 +130,7 @@ class PreviewWindowBuilder
     const ComPtr<ID3D11DeviceContext> context;
     const ComPtr<ID3D11RenderTargetView> rtv;
     std::wstring windowClassName;
-    std::shared_ptr<PreviewWindow> currentWindow;
+    std::set<std::shared_ptr<PreviewWindow>> instances;
 
 public:
     inline PreviewWindowBuilder(const HINSTANCE module, const ComPtr<ID3D11Device> device, const ComPtr<ID3D11DeviceContext> context, const ComPtr<ID3D11RenderTargetView> rtv)
@@ -158,12 +159,11 @@ public:
 
     inline std::shared_ptr<PreviewWindow> Create()
     {
-        currentWindow.reset(new PreviewWindow(module, windowClassName, device, context, rtv));
-        currentWindow->onDestroy = [&]() { currentWindow.reset(); };
-        return currentWindow;
+        auto window = std::shared_ptr<PreviewWindow>(new PreviewWindow(module, windowClassName, device, context, rtv));
+        instances.insert(window);
+        window->onDestroy = [&]() { instances.erase(window); };
+        return window;
     }
-
-    inline std::shared_ptr<PreviewWindow> GetCurrentWindow() { return currentWindow; };
-
+    
 };
 

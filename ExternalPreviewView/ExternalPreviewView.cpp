@@ -23,10 +23,7 @@ HWND _CreateWindowExW(decltype(&CreateWindowExW) base, DWORD dwExStyle, LPCWSTR 
             switch (m)
             {
             case WM_LBUTTONUP:
-                if (builder->GetCurrentWindow() == nullptr)
-                {
-                    builder->Create();
-                }
+                builder->Create();
                 break;
             case WM_PAINT:
                 PAINTSTRUCT ps;
