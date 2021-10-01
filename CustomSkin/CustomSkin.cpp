@@ -110,68 +110,69 @@ uint64_t Hook_DrawTimeline_DrawLayerFoundation(void** drawInfo, float* xywh)
 
 extern "C" __declspec(dllexport) void WINAPI OnPluginStart(HINSTANCE handle)
 {
+	using namespace RecottePluginManager::Instruction;
 	{
 		auto target = RecottePluginManager::SearchAddress([&](std::byte* address)
 		{
-			static auto part0 = std::vector<unsigned char>
+			static unsigned char part0[] =
 			{
 				0xFF, 0x15, /* 0xA1, 0xD4, 0x2F, 0x00, */ // call cs:GdipGraphicsClear
 			};
-			if (0 != memcmp(address, part0.data(), part0.size())) return false;
-			address += part0.size();
+			if (0 != memcmp(address, part0, sizeof(part0))) return false;
+			address += sizeof(part0);
 			address += sizeof(uint32_t);
 
-			static auto part1 = std::vector<unsigned char>
+			static unsigned char part1[] =
 			{
 				0x85, 0xC0, // test eax, eax
 				0x74, 0x03, // jz short loc_7FF6634CE7DE
-				0x89, 0x47, 0x08, // mov [rdi+8], eax
-				0x44, 0x8B, 0x73, 0x10, // mov r14d,[rbx + 10h]
+				0x89, 0x46, 0x08, // mov [rdi+8], eax
+				0x8B, 0x43, 0x10, // mov eax,[rbx + 10h]
 			};
-			if (0 != memcmp(address, part1.data(), part1.size())) return false;
-			address += part1.size();
+			if (0 != memcmp(address, part1, sizeof(part1))) return false;
+			address += sizeof(part1);
 
 			return true;
 		});
-		auto part3 = std::vector<unsigned char>
+		unsigned char part3[] =
 		{
-			0x48, 0xB8, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // mov rax, 0FFFFFFFFFFFFFFFFh
-			0xFF, 0xD0, // call rax
-			0x90, // nops
+			REX(true, false, false, false), 0xB8 + Reg32::a, DUMMY_ADDRESS, // mov rax, 0FFFFFFFFFFFFFFFFh
+			0xFF, ModRM(2, Mode::reg, Reg32::a), // call rax
+			NOP, // nops
 		};
-		*(void**)(part3.data() + 2) = &Hook_DrawTimeline_GdipGraphicsClear;
-		RecottePluginManager::MemoryCopyAvoidingProtection(target, part3.data(), part3.size());
+		*(void**)(&part3[2]) = &Hook_DrawTimeline_GdipGraphicsClear;
+		RecottePluginManager::MemoryCopyAvoidingProtection(target, part3, sizeof(part3));
 	}
 
 	{
-		static auto part0 = std::vector<unsigned char>
+		static unsigned char part0[] =
 		{
 			0x90, // nop
-			0x48, 0x8D, 0x85, 0xB0, 0x01, 0x00, 0x00, // lea rax, [rbp + 320h + var_170]
-			0x48, 0x89, 0x46, 0x30, // mov[rsi + 30h], rax
-			0x48, 0x8D, 0x55, 0x18, // lea rdx, [rbp + 320h + var_308]
-			0x48, 0x8B, 0xCE, // mov rcx, rsi
+			0x48, 0x8D, 0x85, 0xD0, 0x01, 0x00, 0x00, // lea rax, [rbp + 340h + var_170]
+			0x48, 0x89, 0x47, 0x30, // mov [rdi + 30h], rax
+			0x48, 0x8D, 0x55, 0x20, // lea rdx, [rbp + 340h + var_320]
+			0x48, 0x8B, 0xCF, // mov rcx, rdi
 		};
 		auto target = RecottePluginManager::SearchAddress([&](std::byte* address)
 		{
-			if (0 != memcmp(address, part0.data(), part0.size())) return false;
-			address += part0.size();
+			if (0 != memcmp(address, part0, sizeof(part0))) return false;
+			address += sizeof(part0);
 
-			static auto part1 = std::vector<unsigned char>
+			static unsigned char part1[] =
 			{
-				0xE8, /* 0xA6, 0xD1, 0xE4, 0xFF, */ // call DrawRectangle
+				0xE8, /* 0x77, 0x7B, 0xE2, 0xFF, */ // call DrawRectangle
 			};
-			if (0 != memcmp(address, part1.data(), part1.size())) return false;
-			address += part1.size();
+			if (0 != memcmp(address, part1, sizeof(part1))) return false;
+			address += sizeof(part1);
 			address += sizeof(uint32_t);
 
-			static auto part2 = std::vector<unsigned char>
+			static unsigned char part2[] =
 			{
 				0x90, // nop
-				0x48, 0x8D, 0x05, /* 0xB6, 0xC5, 0x38, 0x00, */ // lea rax, off_7FF6A569B008
+				0x48, 0x8D, 0x05, /* 0xE7, 0x4A, 0x3B, 0x00, */ // lea rax, off_7FF6A569B008
 			};
-			if (0 != memcmp(address, part2.data(), part2.size())) return false;
-			address += part2.size();
+			if (0 != memcmp(address, part2, sizeof(part2))) return false;
+			address += sizeof(part2);
 
 			auto relativeAddressOffset = *((uint32_t*)address); // 0x0038C5B6
 			address += sizeof(uint32_t);
@@ -180,16 +181,15 @@ extern "C" __declspec(dllexport) void WINAPI OnPluginStart(HINSTANCE handle)
 			Global_0 = address + relativeAddressOffset; // 7FF6A569B008; Capture
 			return true;
 		});
-		// part0 はそのままに、part1, part2 を上書きする
-		target += part0.size();
-		auto part3 = std::vector<unsigned char>
+		target += sizeof(part0); // part0 はそのままに、part1, part2 を上書きする
+		unsigned char  part3[] =
 		{
-			0x48, 0xB8, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, // mov rax, 0FFFFFFFFFFFFFFFFh
-			0xFF, 0xD0, // call rax
-			0x90, // nop
+			REX(true, false, false, false), 0xB8 + Reg32::a, DUMMY_ADDRESS, // mov rax, 0FFFFFFFFFFFFFFFFh
+			0xFF, ModRM(2, Mode::reg, Reg32::a), // call rax
+			NOP, // nops
 		};
-		*(void**)(part3.data() + 2) = &Hook_DrawTimeline_DrawLayerFoundation;
-		RecottePluginManager::MemoryCopyAvoidingProtection(target, part3.data(), part3.size());
+		*(void**)(&part3[2]) = &Hook_DrawTimeline_DrawLayerFoundation;
+		RecottePluginManager::MemoryCopyAvoidingProtection(target, part3, sizeof(part3));
 	}
 }
 
