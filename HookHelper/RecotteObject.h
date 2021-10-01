@@ -1,11 +1,12 @@
 ﻿#pragma once
-#include "../HookHelper/HookHelper.h"
+#include "HookHelper.h"
 
 
 struct Vector2 { float x; float y; };
 
 struct Rect { float x; float y; float w; float h; };
 
+// FIXME: 1.4.7.0 アップデートで構造が変化しているので、この定義は間違っている
 union LayerObj
 {
 	RecottePluginManager::VirtualMember<float(*)(), 0x60, 0> getConstantMinHeight;

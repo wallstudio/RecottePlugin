@@ -170,6 +170,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="HookHelper.h" />
+    <ClInclude Include="RecotteObject.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
