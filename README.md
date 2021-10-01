@@ -36,7 +36,7 @@ Cドライブ
 
 #### アップデート
 
-`RecottePlugin\install.bat` に古いバージョンのアンインストールも含まれているので、`RecottePlugin`フォルダを丸ごと取り換えて `install.bat` を実行するだけです。
+Userフォルダ内の `RecottePlugin`フォルダを削除し、新しいZipから`RecottePlugin`フォルダを配置して、`install.bat` を実行してください。
 
 #### アンインストール
 
