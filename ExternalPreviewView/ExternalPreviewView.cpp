@@ -50,6 +50,8 @@ HWND _CreateWindowExW(decltype(&CreateWindowExW) base, DWORD dwExStyle, LPCWSTR 
 
 extern "C" __declspec(dllexport) void WINAPI OnPluginStart(HINSTANCE handle)
 {
+    return; // 次のアップデートでリリースする
+
     static auto module = handle;
 
     // PreviewWidnowの機能ボタン

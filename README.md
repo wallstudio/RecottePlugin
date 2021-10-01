@@ -38,6 +38,10 @@ Cドライブ
 
 `RecottePlugin\install.bat` に古いバージョンのアンインストールも含まれているので、`RecottePlugin`フォルダを丸ごと取り換えて `install.bat` を実行するだけです。
 
+#### アンインストール
+
+`C:\Program Files\RecotteStudio\d3d11.dll` のリンクファイルを削除してください。
+
 ## 機能
 
 #### RecottePluginManager
@@ -47,15 +51,14 @@ PluginをロードするためのPluginです。
 `RecottePluginManager.dll`は`install.bat`によって`d3d11.dll`としてRecotteStudioのインストールフォルダにインストールされます。
 シンボリックリンクの形としてインストールされるので元のファイルも削除しないでください。
 
-これは`C:\Windows\System32\d3d11.dll`のProxyDLLとして動作します。
+（これは`C:\Windows\System32\d3d11.dll`のProxyDLLとして動作します）
 
-#### LayerFolding
+#### ~~LayerFolding~~
 
-レイヤーの折り畳み機能を追加します。
+[公式で実装されました！🎉🎉🎉](https://twitter.com/ahsoft/status/1443096468257062914
+)
 
-レイヤーのラベル（左側のペイン）の左上にある`v`/`>`をクリックするとそのレイヤーの折り畳み状態をON/OFFできます。
-
-レイヤー内のオブジェクトのクリッピングはされていないので、下のレイヤーの背面に透けて見えていますがこれは仕様です。
+それに伴い、RecottePluginからは削除しました。
 
 #### CustomSkin
 
@@ -63,9 +66,9 @@ PluginをロードするためのPluginです。
 
 `RecottePlugin`フォルダ内に`skin.png`の名前で画像を入れておくことでタイムラインに召喚することができます。  
 
-デフォルトで私服のマキさんが描かれるようになっています。かわいいね！
+デフォルトで私服のマキさんが描かれるようになっています。ﾏｷﾏｷｶﾜｲｲﾔｯﾀｰ！
 
-#### MutiEncodeTextReader 
+#### MultiEncodeTextReader 
 
 RecotteStudioが`*.txt`ファイルを読み込む際に、本来であれば`shift-jis`でないと読み込めないところを他の文字コードでも読み込めるようにします。
 
@@ -75,6 +78,12 @@ RecotteStudioが`*.txt`ファイルを読み込む際に、本来であれば`sh
 
 [RecotteShader](https://github.com/wallstudio/RecotteShader)を読み込む機能です。
 詳細はRecotteShader側のドキュメントを参照してください。
+
+<!-- 
+#### ExternalPreviewView
+
+プレビュー画面を外部Windowにします。
+-->
 
 ## 不具合報告
 
