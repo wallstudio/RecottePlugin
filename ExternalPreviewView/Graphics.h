@@ -232,8 +232,8 @@ public:
         ThrowIfError(resource.As(&texture));
         D3D11_TEXTURE2D_DESC desc;
         texture->GetDesc(&desc);
-        auto texAspect = desc.Width / (double)desc.Height;
-        auto winAspect = swapchainDesc.Width / (double)swapchainDesc.Height;
+        auto texAspect = desc.Width / (float)desc.Height;
+        auto winAspect = swapchainDesc.Width / (float)swapchainDesc.Height;
         FXMMATRIX matrix = winAspect > texAspect
             ? XMMatrixScaling(1 / winAspect * texAspect, 1, 1)
             : XMMatrixScaling(1, 1 * winAspect / texAspect, 1);

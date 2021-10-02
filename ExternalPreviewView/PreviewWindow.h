@@ -2,6 +2,7 @@
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
 #include <set>
+#include <random>
 #include <functional>
 #include "Graphics.h"
 
@@ -57,13 +58,13 @@ protected:
 public:
     std::function<void()> onDestroy;
 
-    inline Window(HINSTANCE module, const std::wstring windowClassName, const ComPtr<ID3D11Device> device, const ComPtr<ID3D11DeviceContext> context)
+    inline Window(const std::wstring windowClassName, const ComPtr<ID3D11Device> device, const ComPtr<ID3D11DeviceContext> context)
     {
         RECT rc = { 0, 0, 1600, 900 };
         AdjustWindowRect(&rc, WS_OVERLAPPEDWINDOW, FALSE);
         hwnd = CreateWindowW(windowClassName.c_str(), L"RecottePlugin",
             WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_SIZEBOX,
-            CW_USEDEFAULT, CW_USEDEFAULT, rc.right - rc.left, rc.bottom - rc.top, nullptr, nullptr, module,
+            CW_USEDEFAULT, CW_USEDEFAULT, rc.right - rc.left, rc.bottom - rc.top, nullptr, nullptr, GetModuleHandleW(nullptr),
             nullptr);
         if (!hwnd) throw std::wstring(L"fail create window");
 
@@ -86,7 +87,6 @@ public:
 
 class PreviewWindow : public Window
 {
-private:
     std::shared_ptr<Graphics> graphics;
     UINT_PTR timer;
 
@@ -111,8 +111,8 @@ private:
     }
 
 public:
-    inline PreviewWindow(HINSTANCE module, const std::wstring windowClassName, const ComPtr<ID3D11Device> device, const ComPtr<ID3D11DeviceContext> context, ComPtr<ID3D11RenderTargetView> rtv)
-        : Window(module, windowClassName, device, context)
+    inline PreviewWindow(const std::wstring windowClassName, const ComPtr<ID3D11Device> device, const ComPtr<ID3D11DeviceContext> context, ComPtr<ID3D11RenderTargetView> rtv)
+        : Window(windowClassName, device, context)
     {
         graphics.reset(new Graphics(hwnd, context, rtv));
         timer = SetTimer(hwnd, 334, 1000 * 1 / 90, nullptr);
@@ -125,7 +125,7 @@ public:
 
 class PreviewWindowBuilder
 {
-    const HINSTANCE module;
+    static inline std::random_device rand;
     const ComPtr<ID3D11Device> device;
     const ComPtr<ID3D11DeviceContext> context;
     const ComPtr<ID3D11RenderTargetView> rtv;
@@ -133,10 +133,10 @@ class PreviewWindowBuilder
     std::set<std::shared_ptr<PreviewWindow>> instances;
 
 public:
-    inline PreviewWindowBuilder(const HINSTANCE module, const ComPtr<ID3D11Device> device, const ComPtr<ID3D11DeviceContext> context, const ComPtr<ID3D11RenderTargetView> rtv)
-        : device(device), context(context), module(module), rtv(rtv)
+    inline PreviewWindowBuilder(const ComPtr<ID3D11Device> device, const ComPtr<ID3D11DeviceContext> context, const ComPtr<ID3D11RenderTargetView> rtv)
+        : device(device), context(context), rtv(rtv)
     {
-        windowClassName = std::format(L"ExternalPreviewWindow_{:08x}", (size_t)module);
+        windowClassName = std::format(L"ExternalPreviewWindow_{:08x}", rand());
         WNDCLASSEXW wcex = {
             .cbSize = sizeof(WNDCLASSEX),
             .style = CS_HREDRAW | CS_VREDRAW,
@@ -146,20 +146,20 @@ public:
             },
             .cbClsExtra = 0,
             .cbWndExtra = 0,
-            .hInstance = module,
-            .hIcon = LoadIcon(module, (LPCTSTR)IDI_APPLICATION),
+            .hInstance = GetModuleHandleW(nullptr),
+            .hIcon = LoadIcon(GetModuleHandleW(nullptr), (LPCTSTR)IDI_APPLICATION),
             .hCursor = LoadCursor(nullptr, IDC_ARROW),
             .hbrBackground = (HBRUSH)(COLOR_WINDOW + 1),
             .lpszMenuName = nullptr,
             .lpszClassName = windowClassName.c_str(),
-            .hIconSm = LoadIcon(module, (LPCTSTR)IDI_APPLICATION),
+            .hIconSm = LoadIcon(GetModuleHandleW(nullptr), (LPCTSTR)IDI_APPLICATION),
         };
         if (!RegisterClassExW(&wcex)) throw std::wstring(L"fail register");
     }
 
     inline std::shared_ptr<PreviewWindow> Create()
     {
-        auto window = std::shared_ptr<PreviewWindow>(new PreviewWindow(module, windowClassName, device, context, rtv));
+        auto window = std::shared_ptr<PreviewWindow>(new PreviewWindow(windowClassName, device, context, rtv));
         instances.insert(window);
         window->onDestroy = [&]() { instances.erase(window); };
         return window;
