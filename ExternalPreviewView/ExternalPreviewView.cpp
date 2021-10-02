@@ -3,7 +3,7 @@
 #include <comdef.h>
 #include <memory>
 #include "resource.h"
-#include "../HookHelper/HookHelper.h"
+#include "../RecottePluginManager/PluginHelper.h"
 #include "PreviewWindow.h"
 
 using Microsoft::WRL::ComPtr;

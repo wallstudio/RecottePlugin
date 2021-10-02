@@ -7,7 +7,7 @@
 #include <filesystem>
 #include <memory>
 #include <string>
-#include "../HookHelper/HookHelper.h"
+#include "../RecottePluginManager/PluginHelper.h"
 
 
 auto g_ShaderFinding = std::map<HANDLE, std::shared_ptr<std::list<WIN32_FIND_DATAW>>>();

@@ -7,7 +7,7 @@
 #include <map>
 #include <format>
 #include <math.h>
-#include "../HookHelper/HookHelper.h"
+#include "../RecottePluginManager/PluginHelper.h"
 
 #include <objbase.h>
 #include <gdiplus.h>

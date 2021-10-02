@@ -11,7 +11,7 @@
 #include <combaseapi.h>
 #include <Mlang.h>
 #include <wrl.h>
-#include "../HookHelper/HookHelper.h"
+#include "../RecottePluginManager/PluginHelper.h"
 
 #pragma comment(lib,"Ole32.lib")
 

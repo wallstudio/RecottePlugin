@@ -3,7 +3,7 @@
 #include <vector>
 #include <map>
 #include <filesystem>
-#include "../HookHelper/HookHelper.h" // アセンブリレベルの互換性が無いのでリンクはしない
+#include "../RecottePluginManager/PluginHelper.h"
 
 
 const auto EMSG_FAILED_PLUGIN_DLL = L"プラグインDLLが読み込めません\r\n{}\r\n{}";

@@ -11,27 +11,13 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "RecottePluginManager", "Rec
 		{5C68CCEF-80CA-4F38-B439-50ADC99DB917} = {5C68CCEF-80CA-4F38-B439-50ADC99DB917}
 	EndProjectSection
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "HookHelper", "HookHelper\HookHelper.vcxproj", "{47156942-8EA3-4ADE-8EA6-68C5E02294D7}"
-EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "CustomSkin", "CustomSkin\CustomSkin.vcxproj", "{2A414713-F784-4172-ACD2-A1589020BE13}"
-	ProjectSection(ProjectDependencies) = postProject
-		{47156942-8EA3-4ADE-8EA6-68C5E02294D7} = {47156942-8EA3-4ADE-8EA6-68C5E02294D7}
-	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "RecotteShaderLoader", "RecotteShaderLoader\RecotteShaderLoader.vcxproj", "{5C68CCEF-80CA-4F38-B439-50ADC99DB917}"
-	ProjectSection(ProjectDependencies) = postProject
-		{47156942-8EA3-4ADE-8EA6-68C5E02294D7} = {47156942-8EA3-4ADE-8EA6-68C5E02294D7}
-	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "MutiEncodeTextReader", "MutiEncodeTextReader\MutiEncodeTextReader.vcxproj", "{97035916-5588-4642-9D9C-3D54594E8294}"
-	ProjectSection(ProjectDependencies) = postProject
-		{47156942-8EA3-4ADE-8EA6-68C5E02294D7} = {47156942-8EA3-4ADE-8EA6-68C5E02294D7}
-	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ExternalPreviewView", "ExternalPreviewView\ExternalPreviewView.vcxproj", "{33025655-60D5-46FF-BB08-73D66D9DFA0D}"
-	ProjectSection(ProjectDependencies) = postProject
-		{47156942-8EA3-4ADE-8EA6-68C5E02294D7} = {47156942-8EA3-4ADE-8EA6-68C5E02294D7}
-	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -49,14 +35,6 @@ Global
 		{72F0910E-CC73-438B-8640-BEDD1C8FB54A}.Release|x64.Build.0 = Release|x64
 		{72F0910E-CC73-438B-8640-BEDD1C8FB54A}.Release|x86.ActiveCfg = Release|Win32
 		{72F0910E-CC73-438B-8640-BEDD1C8FB54A}.Release|x86.Build.0 = Release|Win32
-		{47156942-8EA3-4ADE-8EA6-68C5E02294D7}.Debug|x64.ActiveCfg = Debug|x64
-		{47156942-8EA3-4ADE-8EA6-68C5E02294D7}.Debug|x64.Build.0 = Debug|x64
-		{47156942-8EA3-4ADE-8EA6-68C5E02294D7}.Debug|x86.ActiveCfg = Debug|Win32
-		{47156942-8EA3-4ADE-8EA6-68C5E02294D7}.Debug|x86.Build.0 = Debug|Win32
-		{47156942-8EA3-4ADE-8EA6-68C5E02294D7}.Release|x64.ActiveCfg = Release|x64
-		{47156942-8EA3-4ADE-8EA6-68C5E02294D7}.Release|x64.Build.0 = Release|x64
-		{47156942-8EA3-4ADE-8EA6-68C5E02294D7}.Release|x86.ActiveCfg = Release|Win32
-		{47156942-8EA3-4ADE-8EA6-68C5E02294D7}.Release|x86.Build.0 = Release|Win32
 		{2A414713-F784-4172-ACD2-A1589020BE13}.Debug|x64.ActiveCfg = Debug|x64
 		{2A414713-F784-4172-ACD2-A1589020BE13}.Debug|x64.Build.0 = Debug|x64
 		{2A414713-F784-4172-ACD2-A1589020BE13}.Debug|x86.ActiveCfg = Debug|Win32
