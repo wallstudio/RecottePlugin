@@ -40,7 +40,7 @@ namespace RecottePluginManager
 		throw std::format(EMSG_NOT_FOUND_FUNC_IN_DLL, RecottePluginManager::AsciiToWide(moduleName), RecottePluginManager::AsciiToWide(functionName));
 	}
 
-	FARPROC Intenal::LookupFunctionFromWin32Api(const std::string& moduleName, const std::string& functionName)
+	FARPROC Internal::LookupFunctionFromWin32Api(const std::string& moduleName, const std::string& functionName)
 	{
 		static std::map<std::string, FARPROC> baseFunctions = std::map<std::string, FARPROC>();
 
@@ -58,7 +58,7 @@ namespace RecottePluginManager
 		return baseFunctions[id];
 	}
 
-	void* Intenal::OverrideIATFunction(const std::string& moduleName, const std::string& functionName, void* newFunction)
+	void* Internal::OverrideIATFunction(const std::string& moduleName, const std::string& functionName, void* newFunction)
 	{
 		auto importAddress = LockupMappedFunctionFromIAT(moduleName, functionName);
 		DWORD oldrights, newrights = PAGE_READWRITE;

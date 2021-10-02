@@ -49,9 +49,9 @@ namespace RecottePluginManager
 	}
 
 
-	// IAT utilities
+	// Hook utilities
 
-	namespace Intenal
+	namespace Internal
 	{
 		FARPROC LookupFunctionFromWin32Api(const std::string& moduleName, const std::string& functionName);
 		extern void* OverrideIATFunction(const std::string& moduleName, const std::string& functionName, void* newFunction);
@@ -60,13 +60,13 @@ namespace RecottePluginManager
 	template<typename TDelegate>
 	extern TDelegate LookupFunctionFromWin32Api(const std::string& moduleName, const std::string& functionName)
 	{
-		return reinterpret_cast<TDelegate>(Intenal::LookupFunctionFromWin32Api(moduleName, functionName));
+		return reinterpret_cast<TDelegate>(Internal::LookupFunctionFromWin32Api(moduleName, functionName));
 	}
 
 	template<typename TDelegate>
 	extern TDelegate OverrideIATFunction(const std::string& moduleName, const std::string& functionName, TDelegate newFunction)
 	{
-		return (TDelegate)Intenal::OverrideIATFunction(moduleName, functionName, newFunction);
+		return (TDelegate)Internal::OverrideIATFunction(moduleName, functionName, newFunction);
 	}
 
 	namespace Instruction

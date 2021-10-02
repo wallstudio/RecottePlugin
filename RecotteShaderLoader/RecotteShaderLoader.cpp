@@ -58,7 +58,7 @@ HANDLE _FindFirstFileW(LPCWSTR lpFileName, LPWIN32_FIND_DATAW lpFindFileData)
 	static LPCWSTR types[]{ L"effects", L"text", L"transitions" };
 	for (auto type : types)
 	{
-		if (lpFileName == std::format(L"C:\\Program Files\\RecotteStudio\\effects\\{}\\*", type))
+		if (lpFileName == RecottePluginManager::ResolveApplicationDir() / L"effects" / type / "*")
 		{
 			WIN32_FIND_DATAW data;
 			g_FileFindHandles[result] = std::shared_ptr<FilesProvider>(new FilesProvider(lpFileName));
