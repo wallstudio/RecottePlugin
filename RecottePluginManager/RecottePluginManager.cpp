@@ -18,61 +18,70 @@ FARPROC p[51];
 
 auto g_Plugins = std::map<std::filesystem::path, HINSTANCE>();
 
+
 void OnAttach()
 {
+	auto pluginFiles = std::map<std::filesystem::path, void (*)(HINSTANCE)>();
 	try
 	{
-		static auto pluginsDirectroy = RecottePluginManager::ResolvePluginPath();
-
-		auto pluginFiles = std::vector<std::filesystem::path>();
-		for (auto pluginFile : std::filesystem::directory_iterator(pluginsDirectroy))
+		for (auto pluginFile : std::filesystem::directory_iterator(RecottePluginManager::ResolvePluginPath()))
 		{
 			auto s = pluginFile.path().extension().string();
 			if (pluginFile.path().extension().string() != ".dll") continue;
 			if (pluginFile.path().filename().string() == "RecottePluginManager.dll") continue;
 			if (pluginFile.path().filename().string() == "d3d11.dll") continue;
 			if (pluginFile.is_directory()) continue;
-			pluginFiles.push_back(pluginFile.path());
-		}
 
-		auto alertMessage = std::format(L"以下の{}つのPluginが読み込まれます\r\n", pluginFiles.size());
-		for (auto& pluginFile : pluginFiles)
-		{
-			alertMessage += std::format(L"\r\n{}", pluginFile.wstring());
-		}
-#if NODEBUG
-		MessageBoxW(nullptr, alertMessage.c_str(), L"RecottePluginLoader", MB_OK);
-#endif
-
-		for (auto& pluginFile : pluginFiles)
-		{
-			auto plugin = g_Plugins[pluginFile] = LoadLibraryA(pluginFile.string().c_str());
-			if (plugin == nullptr) throw std::format(EMSG_FAILED_PLUGIN_DLL, RecottePluginManager::GetLastErrorString(), pluginFile.wstring());
+			auto plugin = g_Plugins[pluginFile] = LoadLibraryA(pluginFile.path().string().c_str());
+			if (plugin == nullptr) throw std::format(EMSG_FAILED_PLUGIN_DLL, RecottePluginManager::GetLastErrorString(), pluginFile.path().wstring());
 
 			auto callback = (void (WINAPI*)(HINSTANCE))GetProcAddress(plugin, "OnPluginStart");
-			if (callback == nullptr) throw std::format(EMSG_FAILED_PLUGIN_STARR, RecottePluginManager::GetLastErrorString(), pluginFile.wstring());
+			if (callback == nullptr) throw std::format(EMSG_FAILED_PLUGIN_STARR, RecottePluginManager::GetLastErrorString(), pluginFile.path().wstring());
 
-			callback(hLibMine);
+			pluginFiles[pluginFile] = callback;
 		}
 	}
 	catch (std::wstring& e)
 	{
-#if !defined(NDEBUG)
-		// Debug/Releaseでレイアウトが変わるっぽい
-		MessageBoxW(nullptr, *((wchar_t**)&e + 1), L"RecottePlugin", MB_ICONERROR);
-#else
 		MessageBoxW(nullptr, e.c_str(), L"RecottePlugin", MB_ICONERROR);
-#endif
 		exit(-1145141919);
 	}
 	catch (std::exception& e)
 	{
-#if !defined(NDEBUG)
-		MessageBoxA(nullptr, *((char**)&e + 1), "RecottePlugin", MB_ICONERROR);
-#else
 		MessageBoxA(nullptr, e.what(), "RecottePlugin", MB_ICONERROR);
-#endif
 		exit(-1145141919);
+	}
+
+#if NODEBUG
+	auto alertMessage = std::format(L"以下の{}つのPluginが読み込まれます\r\n", pluginFiles.size());
+	for (auto& [pluginFile, callback] : pluginFiles)
+	{
+		alertMessage += std::format(L"\r\n{}", pluginFile);
+	}
+	MessageBoxW(nullptr, alertMessage.c_str(), L"RecottePluginLoader", MB_OK);
+#endif
+
+	for (auto& [pluginFile, callback] : pluginFiles)
+	{
+		try
+		{
+			callback(hLibMine);
+		}
+		catch (std::wstring& e)
+		{
+#if !defined(NDEBUG)
+			// Debug/Releaseでレイアウトが変わるっぽい
+			MessageBoxW(nullptr, *((wchar_t**)&e + 1), std::format(L"RecottePlugin::{}", pluginFile.stem().wstring()).c_str(), MB_ICONERROR);
+#else
+			MessageBoxW(nullptr, e.c_str(), std::format(L"RecottePlugin::{}", pluginFile.stem().wstring()).c_str(), MB_ICONERROR);
+#endif
+			exit(-1145141919);
+		}
+		catch (std::exception& e)
+		{
+			MessageBoxA(nullptr, e.what(), std::format("RecottePlugin::{}", pluginFile.stem().string()).c_str(), MB_ICONERROR);
+			exit(-1145141919);
+		}
 	}
 }
 
