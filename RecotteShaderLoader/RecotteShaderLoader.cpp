@@ -69,7 +69,7 @@ HANDLE _FindFirstFileW(LPCWSTR lpFileName, LPWIN32_FIND_DATAW lpFindFileData)
 
 			static auto recotteShaderDir = ResolveRecotteShaderDirctory();
 			auto dir = recotteShaderDir / type;
-			dir = dir.lexically_relative(std::format(L"C:\\Program Files\\RecotteStudio\\effects\\{}", type));
+			dir = dir.lexically_relative((RecottePluginManager::ResolveApplicationDir() / L"effects" / type).c_str());
 			for (auto handle = g_Original_FindFirstFileW(std::format(L"{}\\*", dir.wstring()).c_str(), &data); handle != INVALID_HANDLE_VALUE && g_Original_FindNextFileW(handle, &data);)
 			{
 				if (0 == wcscmp(data.cFileName, L"..")) continue;
