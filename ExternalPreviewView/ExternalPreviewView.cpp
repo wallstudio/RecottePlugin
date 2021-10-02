@@ -19,26 +19,54 @@ HWND _CreateWindowExW(decltype(&CreateWindowExW) base, DWORD dwExStyle, LPCWSTR 
         auto hwnd = base(dwExStyle, L"BUTTON", L"uh_preview_popup", dwStyle, 1, 1, 26, 26, hWndParent, hMenu, hInstance, lpParam);
         WNDPROC proc = [](HWND hwnd, UINT m, WPARAM w, LPARAM l) -> LRESULT
         {
-            static auto buttonPopupBitmap = LoadBitmap(GetModuleHandleW(L"ExternalPreviewView"), MAKEINTRESOURCE(BUTTON_POPUP));
+            static auto buttonPopupIcon= LoadIconW(GetModuleHandleW(L"ExternalPreviewView"), MAKEINTRESOURCE(BUTTON_POPUP));
+            static auto background = CreateSolidBrush(0x3e3e3e);
+            static auto hoverBackground = CreateSolidBrush(0x505050);
+            static auto pressedBackground = CreateSolidBrush(0x202020);
+            static auto hover = false;
+            static auto pressed = false;
             switch (m)
             {
             case WM_LBUTTONUP:
                 builder->Create();
                 break;
             case WM_PAINT:
-                PAINTSTRUCT ps;
                 {
+                    PAINTSTRUCT ps;
                     auto hdc = BeginPaint(hwnd, &ps);
-                    auto memoryHdc = CreateCompatibleDC(hdc);
-                    SetBkMode(hdc, TRANSPARENT);
-                    SelectObject(memoryHdc, buttonPopupBitmap);
-                    BitBlt(hdc, 0, 0, 26, 26, memoryHdc, 0, 0, SRCCOPY);
-                    DeleteDC(memoryHdc);
+                    static RECT rect = { 0, 0, 26, 26 };
+                    FillRect(hdc, &rect, pressed ? pressedBackground : (hover ? hoverBackground : background));
+                    auto u = DrawIconEx(hdc, 0, 0, buttonPopupIcon, 26, 26, 0, nullptr, DI_NORMAL | DI_COMPAT);
                     EndPaint(hwnd, &ps);
                 }
                 break;
+            case WM_LBUTTONDOWN:
+            case WM_MOUSEMOVE:
+                {
+                    pressed = w == MK_LBUTTON;
+                    TRACKMOUSEEVENT track = {
+                        .cbSize = sizeof(TRACKMOUSEEVENT),
+                        .dwFlags = TME_HOVER | TME_LEAVE,
+                        .hwndTrack = hwnd,
+                        .dwHoverTime = 1,
+                    };
+                    TrackMouseEvent(&track);
+                    RedrawWindow(hwnd, nullptr, nullptr, RDW_INTERNALPAINT | RDW_INVALIDATE);
+            }
+                break;
+            case WM_MOUSEHOVER:
+                hover = true;
+                RedrawWindow(hwnd, nullptr, nullptr, RDW_INTERNALPAINT | RDW_INVALIDATE);
+                break;
+            case WM_MOUSELEAVE:
+                hover = pressed = false;
+                RedrawWindow(hwnd, nullptr, nullptr, RDW_INTERNALPAINT | RDW_INVALIDATE);
+                break;
             case WM_DESTROY:
-                DeleteObject(buttonPopupBitmap);
+                DeleteObject(buttonPopupIcon);
+                DeleteObject(background);
+                DeleteObject(hoverBackground);
+                DeleteObject(pressedBackground);
                 break;
             }
             return DefWindowProcW(hwnd, m, w, l);
@@ -50,8 +78,6 @@ HWND _CreateWindowExW(decltype(&CreateWindowExW) base, DWORD dwExStyle, LPCWSTR 
 
 extern "C" __declspec(dllexport) void WINAPI OnPluginStart(HINSTANCE handle)
 {
-    return; // 次のアップデートでリリースする
-
     static auto module = handle;
 
     // PreviewWidnowの機能ボタン
