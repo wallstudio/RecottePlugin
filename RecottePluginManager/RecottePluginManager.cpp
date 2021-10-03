@@ -3,6 +3,7 @@
 #include <vector>
 #include <map>
 #include <filesystem>
+#include "resource.h"
 #include "../RecottePluginManager/PluginHelper.h"
 
 
@@ -19,8 +20,98 @@ FARPROC p[51];
 auto g_Plugins = std::map<std::filesystem::path, HINSTANCE>();
 
 
+inline HWND _CreateWindowExW(decltype(&CreateWindowExW) base, DWORD dwExStyle, LPCWSTR lpClassName, LPCWSTR lpWindowName, DWORD dwStyle, int X, int Y, int nWidth, int nHeight, HWND hWndParent, HMENU hMenu, HINSTANCE hInstance, LPVOID lpParam)
+{
+	auto hwnd = base(dwExStyle, lpClassName, lpWindowName, dwStyle, X, Y, nWidth, nHeight, hWndParent, hMenu, hInstance, lpParam);
+
+	if (lpWindowName == nullptr || std::wstring(lpWindowName) != L"Update") return hwnd;
+	
+	auto parent = GetParent(hwnd);
+	if (parent == nullptr) return hwnd;
+
+	auto parntParent = GetParent(parent);
+	if (parent == nullptr) return hwnd;
+
+	static auto text = std::vector<wchar_t>(512);
+	GetWindowTextW(parntParent, text.data(), text.size());
+	if (std::wstring(text.data()) != L"Recotte Studio") return hwnd;
+
+	// PreviewWidnowの機能ボタン
+	{
+		auto hwnd = base(dwExStyle, L"BUTTON", L"uh_plugin_config", dwStyle, 0, 0, 28, 28, hWndParent, hMenu, hInstance, lpParam);
+		WNDPROC proc = [](HWND hwnd, UINT m, WPARAM w, LPARAM l) -> LRESULT
+		{
+			static auto buttonPopupIcon = LoadIconW(GetModuleHandleW(L"d3d11"), MAKEINTRESOURCE(BUTTON_CONFIG));
+			static auto background = CreateSolidBrush(0x202020);
+			static auto hoverBackground = CreateSolidBrush(0x505050);
+			static auto pressedBackground = CreateSolidBrush(0x202020);
+			static auto hover = false;
+			static auto pressed = false;
+			switch (m)
+			{
+			case WM_LBUTTONUP:
+			{
+				auto text = std::wstring(L"以下のPluginがロードされています\r\n\r\n");
+				for (auto [path, handle] : g_Plugins)
+				{
+					text += path.stem().wstring() + L"\r\n";
+				}
+				MessageBoxW(nullptr, text.c_str(), L"RecottePlugin", MB_OK);
+				break;
+			}
+			case WM_PAINT:
+			{
+				PAINTSTRUCT ps;
+				auto hdc = BeginPaint(hwnd, &ps);
+				static RECT rect = { 0, 0, 28, 28 };
+				FillRect(hdc, &rect, pressed ? pressedBackground : (hover ? hoverBackground : background));
+				auto u = DrawIconEx(hdc, 0, 0, buttonPopupIcon, 28, 28, DI_DEFAULTSIZE, nullptr, DI_NORMAL | DI_COMPAT);
+				EndPaint(hwnd, &ps);
+			}
+			break;
+			case WM_LBUTTONDOWN:
+			case WM_MOUSEMOVE:
+			{
+				pressed = w == MK_LBUTTON;
+				TRACKMOUSEEVENT track = {
+					.cbSize = sizeof(TRACKMOUSEEVENT),
+					.dwFlags = TME_HOVER | TME_LEAVE,
+					.hwndTrack = hwnd,
+					.dwHoverTime = 1,
+				};
+				TrackMouseEvent(&track);
+				RedrawWindow(hwnd, nullptr, nullptr, RDW_INTERNALPAINT | RDW_INVALIDATE);
+			}
+			break;
+			case WM_MOUSEHOVER:
+				hover = true;
+				RedrawWindow(hwnd, nullptr, nullptr, RDW_INTERNALPAINT | RDW_INVALIDATE);
+				break;
+			case WM_MOUSELEAVE:
+				hover = pressed = false;
+				RedrawWindow(hwnd, nullptr, nullptr, RDW_INTERNALPAINT | RDW_INVALIDATE);
+				break;
+			case WM_DESTROY:
+				DeleteObject(buttonPopupIcon);
+				DeleteObject(background);
+				DeleteObject(hoverBackground);
+				DeleteObject(pressedBackground);
+				break;
+			}
+			return DefWindowProcW(hwnd, m, w, l);
+		};
+		SetWindowLongPtrW(hwnd, GWLP_WNDPROC, (LONG_PTR)proc);
+		//SetWindowPos(hwnd, nullptr, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOZORDER);
+		ShowWindow(hwnd, SW_SHOW);
+	}
+
+	return hwnd;
+}
+
 void OnAttach()
 {
+	static decltype(&CreateWindowExW) createWindowExW = RecottePluginManager::OverrideIATFunction<decltype(&CreateWindowExW)>("user32.dll", "CreateWindowExW", [](auto ...args) { return _CreateWindowExW(createWindowExW, args...); });
+
 	auto pluginFiles = std::map<std::filesystem::path, void (*)(HINSTANCE)>();
 	try
 	{

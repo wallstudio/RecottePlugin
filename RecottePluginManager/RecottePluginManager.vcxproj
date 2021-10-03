@@ -173,6 +173,13 @@
   <ItemGroup>
     <ClInclude Include="PluginHelper.h" />
     <ClInclude Include="RecotteObject.h" />
+    <ClInclude Include="resource.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="RecottePluginManager.rc" />
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="img\recotte_plugin.ico" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
