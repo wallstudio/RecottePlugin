@@ -4,12 +4,11 @@
 
 RecotteStudioのプラグインです。
 
-![](img/ss1.gif)
+![](img/ss2.gif)
 
 ## 対応バージョン
 
-- RecotteStudio v1.4.0.0
-- RecotteStudio v1.3.7.6
+- RecotteStudio v1.4.7.0
 
 ## インストール方法
 
@@ -34,17 +33,17 @@ Cドライブ
         └ …
 ```
 
-#### アップデート
+### アップデート
 
 Userフォルダ内の `RecottePlugin`フォルダを削除し、新しいZipから`RecottePlugin`フォルダを配置して、`install.bat` を実行してください。
 
-#### アンインストール
+### アンインストール
 
 `C:\Program Files\RecotteStudio\d3d11.dll` のリンクファイルを削除してください。
 
 ## 機能
 
-#### RecottePluginManager
+### RecottePluginManager
 
 PluginをロードするためのPluginです。
 
@@ -53,14 +52,14 @@ PluginをロードするためのPluginです。
 
 （これは`C:\Windows\System32\d3d11.dll`のProxyDLLとして動作します）
 
-#### ~~LayerFolding~~
+### ~~LayerFolding~~
 
 [公式で実装されました！🎉🎉🎉](https://twitter.com/ahsoft/status/1443096468257062914
 )
 
 それに伴い、RecottePluginからは削除しました。
 
-#### CustomSkin
+### CustomSkin
 
 タイムラインの背景に画像を描画する機能です。
 
@@ -68,24 +67,22 @@ PluginをロードするためのPluginです。
 
 デフォルトで私服のマキさんが描かれるようになっています。ﾏｷﾏｷｶﾜｲｲﾔｯﾀｰ！
 
-#### MultiEncodeTextReader 
+### MultiEncodeTextReader 
 
 RecotteStudioが`*.txt`ファイルを読み込む際に、本来であれば`shift-jis`でないと読み込めないところを他の文字コードでも読み込めるようにします。
 
 ファイルの中身から自動判定をしている都合、ファイル内の文字数が1、2文字の場合はうまくいかないかもしれません。対応している文字コードは[`MLang`に準じ](https://docs.microsoft.com/en-us/previous-versions/windows/internet-explorer/ie-developer/platform-apis/aa767865(v=vs.85))ます
 
-#### RecotteShaderLoader
+### RecotteShaderLoader
 
 [RecotteShader](https://github.com/wallstudio/RecotteShader)を読み込む機能です。
 詳細はRecotteShader側のドキュメントを参照してください。
 
-<!-- 
-#### ExternalPreviewView
+### ExternalPreviewView
 
-プレビュー画面を外部Windowにします。
--->
+プレビュー画面を外部Windowに複製します。複製Windowの数に制限はありません。ただし、複製Window上でオブジェクトを動かすことはできません。
 
-## 不具合報告
+## 不具合、要望について
 
 issuesまたは、[@yukawallstudio](https://twitter.com/yukawallstudio) までお問い合わせください。内容は以下のテンプレートを参考にしてください。
 
@@ -101,27 +98,29 @@ PCの型番: GARAGARA-3000-BT
 
 ## ビルド環境
 
-- VisualStudio2019 16.10.2
+- VisualStudio2019 16.11.3
 
-`std::format`とか使ってるので少し前のバージョンでも動かないと思います。
+RecottePluginManagerプロジェクトをスタートアッププロジェクトとして実行すると、環境変数`RECOTTE_PLUGIN_DIR`にビルド先が設定された状態で、RecotteStudioが立ち上がります。
+通常、`d3d11.dll`(`RecottePluginManager.dll`)は`~\RecottePlugin`以下のPluginをロードしますが、環境変数`RECOTTE_PLUGIN_DIR`が設定されている場合、そちらを見に行く仕組みになっています。
 
-通常、`RecottePluginManager.dll`は`~\RecottePlugin`以下のPluginをロードしますが、環境変数`RECOTTE_PLUGIN_DIR`にディレクトリを設定しておくことで別ディレクトリからロードさせることもできます。
+`d3d11.dll`(`RecottePluginManager.dll`)自体に変更を加えている場合、`link_(Release|Debug).bat`を利用する必要があります。
 
 ![](img/env.png)
 
 ## 新しいPluginの開発方法
 
-このリポジトリをフォークして拡張するのではなく、別のプロジェクトとして「`~/RecottePlugin`以下にコピーしてインストールしてね」というスタイルを取っていただけると助かります。
+Pluginの実装要件は、`OnPluginStart`と`OnPluginFinish`をエクスポートするDLLであることです。
+`~/RecottePlugin`以下に配置することで、本リポジトリ提供のプラグインと同じようにロードされます。
 
-`LayerFolding.cpp`あたりを参考にして、`OnPluginStart`と`OnPluginFinish`をエクスポートしたDLLを作ってください。
-
-結局のところRecotteStudio内部の処理をもりもり書き換えないことには何もできないので覚悟が必要です。一応動的に書き換えるためのUtilityが`HookHelper`で実装されているので必要に応じて使ってください。
+RecotteStudioは公式機能として公開されたAPIは存在しないので、システム関数のコールや、プログラムのロードされたメモリを書き換えることでフックポイントを作成して行く必要があります。前者には`RecottePluginManager::OverrideIATFunction`、後者には`RecottePluginManager::SearchAddress`, `RecottePluginManager::MemoryCopyAvoidingProtection`などのユーティリティ関数を利用することで多少楽に実装できるかもしれません。
 
 ## メモ
 
+<details>
 作りとしてはWin32のWindowシステムベースだけど、GDI+で独自の描画をしている個所が多いのでUIいじる系は結構大変？
 
 - https://qiita.com/up-hash/items/28375739208402721323
 - https://qiita.com/up-hash/items/8ca41c4038c26a96674a
 - https://gist.github.com/wallstudio/b78ce70e015058f7c33e391b0cfd7815
 - https://silight.hatenablog.jp/entry/2016/08/23/212820
+</details>
