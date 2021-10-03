@@ -88,8 +88,6 @@ public:
 class PreviewWindow : public Window
 {
     std::shared_ptr<Graphics> graphics;
-    UINT_PTR timer;
-    long long lastTime = 0;
 
     inline void MessageHandlerImpl(UINT message, WPARAM wParam, LPARAM lParam, LRESULT*& result) override
     {
@@ -98,20 +96,8 @@ class PreviewWindow : public Window
         case WM_SIZE:
             graphics->Resize();
             break;
-        case WM_TIMER:
-        {
-            long long ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-            auto dt = ms - lastTime;
-            lastTime = ms;
-            OutputDebugStringW(std::format(L"{:01f} fps\n", 1 / (dt / 1000.0)).c_str());
-            RedrawWindow(hwnd, nullptr, nullptr, RDW_INTERNALPAINT);
-            break;
-        }
         case WM_LBUTTONDOWN:
             graphics->OnClick(LOWORD(lParam), HIWORD(lParam));
-            break;
-        case WM_PAINT:
-            //graphics->Render();
             break;
         }
         Window::MessageHandlerImpl(message, wParam, lParam, result);
@@ -122,11 +108,8 @@ public:
         : Window(windowClassName, device, context)
     {
         graphics.reset(new Graphics(hwnd, context, rtv));
-        timer = SetTimer(hwnd, 334, 1000 * 1 / 90, nullptr);
         //SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
     }
-
-    inline ~PreviewWindow() override { KillTimer(hwnd, timer); }
 
     inline void Present() { graphics->Render(); }
 };

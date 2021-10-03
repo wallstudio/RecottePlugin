@@ -106,7 +106,7 @@ HRESULT _D3D11CreateDevice(decltype(&D3D11CreateDevice) base,
     RecottePluginManager::MemoryCopyAvoidingProtection(&vTable[3 + 6], &proc, sizeof(CreateRenderTargetView));
 
     {
-        // レンダーテクスチャ作成時に、それをを掠め取る
+        // SwapChaine::Present1のタイミングを掠め取る
         typedef HRESULT(*QueryInterface)(IUnknown* This, REFIID riid, void** ppvObject);
         auto vTable = *(QueryInterface**)(*ppDevice);
         static QueryInterface queryInterface = vTable[0];
@@ -137,80 +137,29 @@ HRESULT _D3D11CreateDevice(decltype(&D3D11CreateDevice) base,
                         auto hr = getParent(This, riid, ppParent);
                         if (riid != __uuidof(IDXGIFactory2)) return hr;
 
+                        typedef HRESULT(*CreateSwapChainForHwnd)(IDXGIFactory2* This, IUnknown* pDevice, HWND hWnd, const DXGI_SWAP_CHAIN_DESC1* pDesc, const DXGI_SWAP_CHAIN_FULLSCREEN_DESC* pFullscreenDesc, IDXGIOutput* pRestrictToOutput, IDXGISwapChain1** ppSwapChain);
+                        auto vTable = *(CreateSwapChainForHwnd**)(*ppParent);
+                        static CreateSwapChainForHwnd createSwapchain = vTable[15];
+                        auto proc = (CreateSwapChainForHwnd)[](IDXGIFactory2* This, IUnknown* pDevice, HWND hWnd, const DXGI_SWAP_CHAIN_DESC1* pDesc, const DXGI_SWAP_CHAIN_FULLSCREEN_DESC* pFullscreenDesc, IDXGIOutput* pRestrictToOutput, IDXGISwapChain1** ppSwapChain)->HRESULT
                         {
-                            typedef HRESULT(*CreateSwapChainForHwnd)(IDXGIFactory2* This, IUnknown* pDevice, HWND hWnd, const DXGI_SWAP_CHAIN_DESC1* pDesc, const DXGI_SWAP_CHAIN_FULLSCREEN_DESC* pFullscreenDesc, IDXGIOutput* pRestrictToOutput, IDXGISwapChain1** ppSwapChain);
-                            auto vTable = *(CreateSwapChainForHwnd**)(*ppParent);
-                            static CreateSwapChainForHwnd createSwapchain = vTable[15];
-                            auto proc = (CreateSwapChainForHwnd)[](IDXGIFactory2* This, IUnknown* pDevice, HWND hWnd, const DXGI_SWAP_CHAIN_DESC1* pDesc, const DXGI_SWAP_CHAIN_FULLSCREEN_DESC* pFullscreenDesc, IDXGIOutput* pRestrictToOutput, IDXGISwapChain1** ppSwapChain)->HRESULT
+                            auto hr = createSwapchain(This, pDevice, hWnd, pDesc, pFullscreenDesc, pRestrictToOutput, ppSwapChain);
+
+                            typedef HRESULT(*Present1)(IDXGISwapChain1* This, UINT SyncInterval, UINT PresentFlags, const DXGI_PRESENT_PARAMETERS* pPresentParameters);
+                            auto vTable = *(Present1**)(*ppSwapChain);
+                            static Present1 present = vTable[22];
+                            auto proc = (Present1)[](IDXGISwapChain1* This, UINT SyncInterval, UINT PresentFlags, const DXGI_PRESENT_PARAMETERS* pPresentParameters)->HRESULT
                             {
-                                auto hr = createSwapchain(This, pDevice, hWnd, pDesc, pFullscreenDesc, pRestrictToOutput, ppSwapChain);
+                                auto hr = present(This, SyncInterval, PresentFlags, pPresentParameters);
+                                if (builder != nullptr)
                                 {
-                                    typedef HRESULT(*Present1)(IDXGISwapChain1* This, UINT SyncInterval, UINT PresentFlags, const DXGI_PRESENT_PARAMETERS* pPresentParameters);
-                                    auto vTable = *(Present1**)(*ppSwapChain);
-                                    static Present1 present = vTable[22];
-                                    auto proc = (Present1)[](IDXGISwapChain1* This, UINT SyncInterval, UINT PresentFlags, const DXGI_PRESENT_PARAMETERS* pPresentParameters)->HRESULT
-                                    {
-                                        auto hr = present(This, SyncInterval, PresentFlags, pPresentParameters);
-                                        if (builder != nullptr)
-                                        {
-                                            builder->PresentSingal();
-                                        }
-                                        return hr;
-                                    };
-                                    RecottePluginManager::MemoryCopyAvoidingProtection(&vTable[22], &proc, sizeof(Present1));
+                                    builder->PresentSingal();
                                 }
-                                //{
-                                //    typedef HRESULT(*Present)(IDXGISwapChain1* This, UINT SyncInterval, UINT Flags);
-                                //    auto vTable = *(Present**)(*ppSwapChain);
-                                //    static Present present = vTable[8];
-                                //    auto proc = (Present)[](IDXGISwapChain1* This, UINT SyncInterval, UINT Flags)->HRESULT
-                                //    {
-                                //        auto hr = present(This, SyncInterval, Flags);
-                                //        //
-                                //        return hr;
-                                //    };
-                                //    RecottePluginManager::MemoryCopyAvoidingProtection(&vTable[8], &proc, sizeof(Present));
-                                //}
                                 return hr;
                             };
-                            RecottePluginManager::MemoryCopyAvoidingProtection(&vTable[15], &proc, sizeof(CreateSwapChainForHwnd));
-                        }
-                        //{
-                        //    typedef HRESULT(*CreateSwapChain)(IDXGIFactory1* This, IUnknown* pDevice, DXGI_SWAP_CHAIN_DESC* pDesc, IDXGISwapChain** ppSwapChain);
-                        //    auto vTable = *(CreateSwapChain**)(*ppParent);
-                        //    static CreateSwapChain createSwapchain = vTable[10];
-                        //    auto proc = (CreateSwapChain)[](IDXGIFactory1* This, IUnknown* pDevice, DXGI_SWAP_CHAIN_DESC* pDesc, IDXGISwapChain** ppSwapChain)->HRESULT
-                        //    {
-                        //        auto hr = createSwapchain(This, pDevice, pDesc, ppSwapChain);
-                        //        //
-                        //        return hr;
-                        //    };
-                        //    RecottePluginManager::MemoryCopyAvoidingProtection(&vTable[10], &proc, sizeof(CreateSwapChain));
-                        //}
-                        //{
-                        //    typedef HRESULT(*CreateSwapChainForCoreWindow)(IDXGIFactory2* This, IUnknown* pDevice, IUnknown* pWindow, const DXGI_SWAP_CHAIN_DESC1* pDesc, IDXGIOutput* pRestrictToOutput, IDXGISwapChain1** ppSwapChain);
-                        //    auto vTable = *(CreateSwapChainForCoreWindow**)(*ppParent);
-                        //    static CreateSwapChainForCoreWindow createSwapchain = vTable[16];
-                        //    auto proc = (CreateSwapChainForCoreWindow)[](IDXGIFactory2* This, IUnknown* pDevice, IUnknown* pWindow, const DXGI_SWAP_CHAIN_DESC1* pDesc, IDXGIOutput* pRestrictToOutput, IDXGISwapChain1** ppSwapChain)->HRESULT
-                        //    {
-                        //        auto hr = createSwapchain(This, pDevice, pWindow, pDesc, pRestrictToOutput, ppSwapChain);
-                        //        //
-                        //        return hr;
-                        //    };
-                        //    RecottePluginManager::MemoryCopyAvoidingProtection(&vTable[16], &proc, sizeof(CreateSwapChainForCoreWindow));
-                        //}
-                        //{
-                        //    typedef HRESULT(*CreateSwapChainForComposition)(IDXGIFactory2* This, IUnknown* pDevice, const DXGI_SWAP_CHAIN_DESC1* pDesc, IDXGIOutput* pRestrictToOutput, IDXGISwapChain1** ppSwapChain);
-                        //    auto vTable = *(CreateSwapChainForComposition**)(*ppParent);
-                        //    static CreateSwapChainForComposition createSwapchain = vTable[24];
-                        //    auto proc = (CreateSwapChainForComposition)[](IDXGIFactory2* This, IUnknown* pDevice, const DXGI_SWAP_CHAIN_DESC1* pDesc, IDXGIOutput* pRestrictToOutput, IDXGISwapChain1** ppSwapChain)->HRESULT
-                        //    {
-                        //        auto hr = createSwapchain(This, pDevice, pDesc, pRestrictToOutput, ppSwapChain);
-                        //        //
-                        //        return hr;
-                        //    };
-                        //    RecottePluginManager::MemoryCopyAvoidingProtection(&vTable[24], &proc, sizeof(CreateSwapChainForComposition));
-                        //}
+                            RecottePluginManager::MemoryCopyAvoidingProtection(&vTable[22], &proc, sizeof(Present1));
+                            return hr;
+                        };
+                        RecottePluginManager::MemoryCopyAvoidingProtection(&vTable[15], &proc, sizeof(CreateSwapChainForHwnd));
                         return hr;
                     };
                     RecottePluginManager::MemoryCopyAvoidingProtection(&vTable[6], &proc, sizeof(GetParent));
