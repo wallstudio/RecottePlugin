@@ -13,6 +13,7 @@ public:
     typedef std::function<LRESULT(UINT, WPARAM, LPARAM)> MessageHandlerCallback;
 
 protected:
+    static inline RECT rc = { 0, 0, 1600, 900 };
     HWND hwnd;
     std::shared_ptr<MessageHandlerCallback> messageHandler;
 
@@ -20,6 +21,10 @@ protected:
     {
         switch (message)
         {
+        case WM_MOVE:
+        case WM_SIZE:
+            GetWindowRect(hwnd, &rc);
+            break;
         case WM_DESTROY:
             if (onDestroy != nullptr)
             {
@@ -60,8 +65,6 @@ public:
 
     inline Window(const std::wstring windowClassName, const ComPtr<ID3D11Device> device, const ComPtr<ID3D11DeviceContext> context)
     {
-        RECT rc = { 0, 0, 1600, 900 };
-        AdjustWindowRect(&rc, WS_OVERLAPPEDWINDOW, FALSE);
         hwnd = CreateWindowW(windowClassName.c_str(), L"RecottePlugin",
             WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_SIZEBOX,
             CW_USEDEFAULT, CW_USEDEFAULT, rc.right - rc.left, rc.bottom - rc.top, nullptr, nullptr, GetModuleHandleW(nullptr),
@@ -71,6 +74,7 @@ public:
         messageHandler.reset(new MessageHandlerCallback([&](UINT m, WPARAM w, LPARAM l) -> LRESULT { return MessageHandler(m, w, l); }));
         SetWindowLongPtrW(hwnd, GWLP_USERDATA, (LONG_PTR)messageHandler.get());
 
+        SetWindowPos(hwnd, nullptr, rc.left, rc.top, rc.right - rc.left, rc.bottom - rc.top, SWP_NOZORDER);
         ShowWindow(hwnd, SW_SHOW);
     }
 
@@ -96,6 +100,8 @@ class PreviewWindow : public Window
         case WM_SIZE:
             graphics->Resize();
             break;
+        case WM_PAINT:
+            graphics->Render();
         case WM_LBUTTONDOWN:
             graphics->OnClick(LOWORD(lParam), HIWORD(lParam));
             break;
@@ -111,7 +117,7 @@ public:
         //SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
     }
 
-    inline void Present() { graphics->Render(); }
+    inline void Present() { RedrawWindow(hwnd, nullptr, nullptr, RDW_INTERNALPAINT | RDW_INVALIDATE); }
 };
 
 
