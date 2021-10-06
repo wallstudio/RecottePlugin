@@ -18,6 +18,7 @@
 const auto EMSG_NOT_FOUND_DEFAULT_SKIN_RSP = L"デフォルトのSkinが見つけられません\r\n{}";
 const auto EMSG_NOT_FOUND_RSP_PACKER = L"RSPファイルの展開プログラムが見つけられません\r\n{}";
 const auto EMSG_FILED_UNPACK = L"RSPファイルの展開に失敗しました\r\n{}";
+const auto EMSG_FILED_COMPOSITE = L"RSPファイルの合成に失敗しました\r\n{}";
 const auto EMSG_NOT_FOUND_SKIN_FILE = L"Skin用画像が見つけられません\r\n{}";
 const auto EMSG_FAILED_LOAD_IMAGE = L"画像ファイルの読み込みに失敗しました\r\n{}";
 
@@ -41,16 +42,24 @@ Gdiplus::GpStatus Hook_DrawTimeline_GdipGraphicsClear(Gdiplus::GpGraphics* graph
 				if (!std::filesystem::exists(rsp)) throw std::format(EMSG_NOT_FOUND_DEFAULT_SKIN_RSP, rsp.wstring());
 
 				auto tmpDir = std::filesystem::temp_directory_path() / "RecottePlugin" / rsp.filename();
-				file = tmpDir / "action10_o.png";
+				file = tmpDir / "embedded_skin.png";
 				if (!std::filesystem::exists(file))
 				{
+					// https://github.com/wallstudio/Png2RspConverter/actions
 					auto packer = RecottePluginManager::ResolvePluginPath() / "Png2RspConverter.exe";
 					if (!std::filesystem::exists(rsp)) throw std::format(EMSG_NOT_FOUND_RSP_PACKER, packer.wstring());
 
-					auto command = std::format("\"{}\" --unpack \"{}\" \"{}\"", packer.string(), rsp.string(), tmpDir.string());
-					OutputDebugStringA(std::format("{}\n", command).c_str());
-					auto result = std::system(std::format("\"{}\"", command).c_str()); // 全体を更に引用符で囲う必要がある
-					if (result != 0) throw std::format(EMSG_FILED_UNPACK, RecottePluginManager::AsciiToWide(command));
+					auto unpackCommand = std::format("\"{}\" --unpack \"{}\" \"{}\"", packer.string(), rsp.string(), tmpDir.string());
+					OutputDebugStringA(std::format("{}\n", unpackCommand).c_str());
+					auto unpackResult = std::system(std::format("\"{}\"", unpackCommand).c_str()); // 全体を更に引用符で囲う必要がある
+					if (unpackResult != 0) throw std::format(EMSG_FILED_UNPACK, RecottePluginManager::AsciiToWide(unpackCommand));
+
+					auto compCommand = std::format("\"{}\" --composite \"{}\" \"{}\" \"{}\" \"{}\"",
+						packer.string(), file.string(),
+						(tmpDir / "default_n.png.rdi").string(), (tmpDir / "action10_n.png.rdi").string(), (tmpDir / "action10_o.png.rdi").string());
+					OutputDebugStringA(std::format("{}\n", compCommand).c_str());
+					auto compResult = std::system(std::format("\"{}\"", compCommand).c_str()); // 全体を更に引用符で囲う必要がある
+					if (compResult != 0) throw std::format(EMSG_FILED_COMPOSITE, RecottePluginManager::AsciiToWide(compCommand));
 				}
 			}
 			if (!std::filesystem::exists(file)) throw std::format(EMSG_NOT_FOUND_SKIN_FILE, file.wstring());
