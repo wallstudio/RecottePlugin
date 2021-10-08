@@ -99,7 +99,7 @@ HRESULT _D3D11CreateDevice(decltype(&D3D11CreateDevice) base,
         auto hr = createRenderTargetView(device, pResource, pDesc, ppRTView);
         if (builder == nullptr && Graphics::CheckCapturableRTV(*ppRTView))
         {
-            builder.reset(new PreviewWindowBuilder(device, context, *ppRTView));
+            builder.reset(new PreviewWindowBuilder(*ppRTView));
         }
         return hr;
     };

@@ -63,7 +63,7 @@ protected:
 public:
     std::function<void()> onDestroy;
 
-    inline Window(const std::wstring windowClassName, const ComPtr<ID3D11Device> device, const ComPtr<ID3D11DeviceContext> context)
+    inline Window(const std::wstring windowClassName)
     {
         hwnd = CreateWindowW(windowClassName.c_str(), L"RecottePlugin",
             WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_SIZEBOX,
@@ -110,10 +110,9 @@ class PreviewWindow : public Window
     }
 
 public:
-    inline PreviewWindow(const std::wstring windowClassName, const ComPtr<ID3D11Device> device, const ComPtr<ID3D11DeviceContext> context, ComPtr<ID3D11RenderTargetView> rtv)
-        : Window(windowClassName, device, context)
+    inline PreviewWindow(const std::wstring windowClassName, ComPtr<ID3D11RenderTargetView> rtv) : Window(windowClassName)
     {
-        graphics.reset(new Graphics(hwnd, context, rtv));
+        graphics.reset(new Graphics(hwnd, rtv));
         //SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
     }
 
@@ -124,15 +123,12 @@ public:
 class PreviewWindowBuilder
 {
     static inline std::random_device rand;
-    const ComPtr<ID3D11Device> device;
-    const ComPtr<ID3D11DeviceContext> context;
     const ComPtr<ID3D11RenderTargetView> rtv;
     std::wstring windowClassName;
     std::set<std::shared_ptr<PreviewWindow>> instances;
 
 public:
-    inline PreviewWindowBuilder(const ComPtr<ID3D11Device> device, const ComPtr<ID3D11DeviceContext> context, const ComPtr<ID3D11RenderTargetView> rtv)
-        : device(device), context(context), rtv(rtv)
+    inline PreviewWindowBuilder(const ComPtr<ID3D11RenderTargetView> rtv) : rtv(rtv)
     {
         windowClassName = std::format(L"ExternalPreviewWindow_{:08x}", rand());
         WNDCLASSEXW wcex = {
@@ -157,7 +153,7 @@ public:
 
     inline std::shared_ptr<PreviewWindow> Create()
     {
-        auto window = std::shared_ptr<PreviewWindow>(new PreviewWindow(windowClassName, device, context, rtv));
+        auto window = std::shared_ptr<PreviewWindow>(new PreviewWindow(windowClassName, rtv));
         instances.insert(window);
         window->onDestroy = [&]() { instances.erase(window); };
         return window;

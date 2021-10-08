@@ -179,18 +179,19 @@ float4 PS( PS_INPUT input) : SV_Target
     }
 
 public:
-    inline Graphics(HWND hwnd, ComPtr<ID3D11DeviceContext> context, ComPtr<ID3D11RenderTargetView> rtv) : hwnd(hwnd), context(context)
+    inline Graphics(HWND hwnd, ComPtr<ID3D11RenderTargetView> rtv) : hwnd(hwnd)
     {
 #if _DEBUG
         ComPtr<ID3D12Debug> debug;
         ThrowIfError(D3D12GetDebugInterface(IID_PPV_ARGS(&debug)));
         debug->EnableDebugLayer();
 #endif
-        context->GetDevice(&device);
+        rtv->GetDevice(&device);
         ComPtr<IDXGIDevice1> dxgiDevice;
         ThrowIfError(device->QueryInterface(IID_PPV_ARGS(&dxgiDevice)));
         ThrowIfError(dxgiDevice->GetAdapter(adapter.GetAddressOf()));
         ThrowIfError(adapter->GetParent(__uuidof(IDXGIFactory1), &factory));
+        device->GetImmediateContext(&context);
 
         ComPtr<ID3DBlob> vsBlob;
         CreateShader(device, vs, ps, vsBlob);
