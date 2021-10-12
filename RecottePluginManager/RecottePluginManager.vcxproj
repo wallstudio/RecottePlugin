@@ -171,6 +171,8 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="coreclr_delegates.h" />
+    <ClInclude Include="hostfxr.h" />
     <ClInclude Include="PluginHelper.h" />
     <ClInclude Include="RecotteObject.h" />
     <ClInclude Include="resource.h" />
