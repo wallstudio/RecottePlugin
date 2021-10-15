@@ -107,15 +107,16 @@ inline HWND _CreateWindowExW(decltype(&CreateWindowExW) base, DWORD dwExStyle, L
 void LoadDotNetLibs()
 {
 	// STEP 1: Load HostFxr and get exported hosting functions
-	auto lib = LoadLibraryW(L"C:\\Users\\huser\\Desktop\\mandll\\dotnet-runtime-5.0.10-win-x64\\host\\fxr\\5.0.10\\hostfxr.dll");
+	auto lib = LoadLibraryW(L"C:/Users/huser/Desktop/mandll/dotnet-runtime-5.0.10-win-x64/host/fxr/5.0.10/hostfxr.dll");
 	auto init_fptr = (hostfxr_initialize_for_runtime_config_fn)GetProcAddress(lib, "hostfxr_initialize_for_runtime_config");
 	auto get_delegate_fptr = (hostfxr_get_runtime_delegate_fn)GetProcAddress(lib, "hostfxr_get_runtime_delegate");
 	auto close_fptr = (hostfxr_close_fn)GetProcAddress(lib, "hostfxr_close");
 
+
 	// STEP 2: Initialize and start the .NET Core runtime and Get the load assembly function pointer
 	load_assembly_and_get_function_pointer_fn load_assembly_and_get_function_pointer = nullptr;
 	hostfxr_handle cxt = nullptr;
-	init_fptr("C:\\Users\\huser\\Documents\\Project\\RecottePlugin\\" L"TestDotNetPlugin\\TestDotNetPlugin.runtimeconfig.json", nullptr, &cxt);
+	init_fptr((RecottePluginManager::ResolvePluginPath() / L"../../TestDotNetPlugin/TestDotNetPlugin.runtimeconfig.json").c_str(), nullptr, &cxt);
 	get_delegate_fptr(
 		cxt,
 		hostfxr_delegate_type::hdt_load_assembly_and_get_function_pointer,
@@ -125,7 +126,7 @@ void LoadDotNetLibs()
 	// STEP 3: Load managed assembly and Get function pointer to methods
 	component_entry_point_fn defaultEntryPoint = nullptr;
 	load_assembly_and_get_function_pointer(
-		"C:\\Users\\huser\\Documents\\Project\\RecottePlugin\\" L"TestDotNetPlugin\\bin\\Debug\\net5.0\\TestDotNetPlugin.dll",
+		(RecottePluginManager::ResolvePluginPath() / L"../../TestDotNetPlugin/bin/Debug/net5.0/TestDotNetPlugin.dll").c_str(),
 		L"TestDotNetPlugin, TestDotNetPlugin",
 		L"EntryPoint",
 		nullptr /*delegate_type_name*/,
@@ -134,7 +135,7 @@ void LoadDotNetLibs()
 	struct lib_args { const char_t* message; int number; };
 	void (*cutomEntryPoint)(lib_args args) = nullptr;
 	load_assembly_and_get_function_pointer(
-		"C:\\Users\\huser\\Documents\\Project\\RecottePlugin\\" L"TestDotNetPlugin\\bin\\Debug\\net5.0\\TestDotNetPlugin.dll",
+		(RecottePluginManager::ResolvePluginPath() / L"../../TestDotNetPlugin/bin/Debug/net5.0/TestDotNetPlugin.dll").c_str(),
 		L"TestDotNetPlugin, TestDotNetPlugin",
 		L"CustomEntryPointUnmanaged" /*method_name*/,
 		UNMANAGEDCALLERSONLY_METHOD,
@@ -145,9 +146,6 @@ void LoadDotNetLibs()
 	lib_args args{ L"RecottePlugin", 114514 };
 	defaultEntryPoint(&args, sizeof(args)); // manual marshal
 	cutomEntryPoint(args); // auto marshal
-
-	OutputDebugStringW(std::format(L"{} {} {} {} {}",
-		(void*)init_fptr, (void*)get_delegate_fptr, (void*)close_fptr, (void*)defaultEntryPoint, (void*)cutomEntryPoint).c_str());
 }
 
 void OnAttach()
