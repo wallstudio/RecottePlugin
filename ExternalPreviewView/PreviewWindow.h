@@ -102,6 +102,7 @@ class PreviewWindow : public Window
             break;
         case WM_PAINT:
             graphics->Render();
+            break;
         case WM_LBUTTONDOWN:
             graphics->OnClick(LOWORD(lParam), HIWORD(lParam));
             break;

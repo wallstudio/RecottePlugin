@@ -177,10 +177,10 @@ HRESULT _D3D11CreateDevice(decltype(&D3D11CreateDevice) base,
     return hr;
 }
 
-extern "C" __declspec(dllexport) void WINAPI OnPluginStart(HINSTANCE handle)
+extern "C" __declspec(dllexport) void WINAPI OnPluginStart()
 {
     static decltype(&CreateWindowExW) createWindowExW = RecottePluginManager::OverrideIATFunction<decltype(&CreateWindowExW)>("user32.dll", "CreateWindowExW", [](auto ...args) { return _CreateWindowExW(createWindowExW, args...); });
     static decltype(&D3D11CreateDevice) d3D11CreateDevice = RecottePluginManager::OverrideIATFunction<decltype(&D3D11CreateDevice)>("d3d11.dll", "D3D11CreateDevice", [](auto ...args) { return _D3D11CreateDevice(d3D11CreateDevice, args...); });
 }
 
-extern "C" __declspec(dllexport) void WINAPI OnPluginFinish(HINSTANCE haneld) {}
+extern "C" __declspec(dllexport) void WINAPI OnPluginFinish() {}

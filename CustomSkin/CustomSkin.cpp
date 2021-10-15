@@ -117,7 +117,7 @@ uint64_t Hook_DrawTimeline_DrawLayerFoundation(void** drawInfo, float* xywh)
 	return *(uint64_t*)Global_0;
 }
 
-extern "C" __declspec(dllexport) void WINAPI OnPluginStart(HINSTANCE handle)
+extern "C" __declspec(dllexport) void WINAPI OnPluginStart()
 {
 	using namespace RecottePluginManager::Instruction;
 	{
@@ -202,4 +202,4 @@ extern "C" __declspec(dllexport) void WINAPI OnPluginStart(HINSTANCE handle)
 	}
 }
 
-extern "C" __declspec(dllexport) void WINAPI OnPluginFinish(HINSTANCE haneld) {}
+extern "C" __declspec(dllexport) void WINAPI OnPluginFinish() {}
