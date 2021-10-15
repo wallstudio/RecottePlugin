@@ -107,35 +107,6 @@ namespace RecottePluginManager
 		return (TDelegate)Internal::OverrideIATFunction(moduleName, functionName, newFunction);
 	}
 
-	std::vector<unsigned char> FakeLoaderCode(void* address);
-
-	// 正確にはWinMainではなく、startが取れる
-	// start -> __scrt_common_main_seh -> WinMain
-	inline std::function<std::int64_t()> OverrideWinMain(std::int64_t(*fakeMain)())
-	{
-		// AddressOfEntryPointにfakeMainの相対アドレスをぶっ刺して済ませたいけど、がDWORD（32bit）なので溢れてしまう
-		// また、VirtualAlloc(GetModuleHandleW(nullptr), loader.size(), MEM_COMMIT | MEM_COMMIT, PAGE_EXECUTE_READWRITE); でImageBaseの近くをとろうとしても、確保に失敗する
-		// そこで、AddressOfEntryPointの差す部分を書き換え、書き戻し処理をデリゲートで返す。これは、mainが最初に1回しか呼ばれないことが大前提。
-
-		auto pImgDosHeaders = (IMAGE_DOS_HEADER*)GetModuleHandleW(nullptr);
-		auto pImgNTHeaders = Offset<IMAGE_NT_HEADERS>(pImgDosHeaders, pImgDosHeaders->e_lfanew);
-		auto entryPointRelativeAddress = &pImgNTHeaders->OptionalHeader.AddressOfEntryPoint;
-		auto entryPoint = (decltype(fakeMain))Internal::RvaToVa<void>(*entryPointRelativeAddress);
-
-		auto loader = FakeLoaderCode(fakeMain); // fakeMainの呼出し命令を生成
-		auto trueCode = std::vector<unsigned char>(loader.size());
-		OutputDebugStringW(std::format(L"{}", (void*)entryPoint).c_str());
-		memcpy(trueCode.data(), entryPoint, trueCode.size());
-		MemoryCopyAvoidingProtection(entryPoint, loader.data(), loader.size());
-		auto trueCall = [=]()
-		{
-			MemoryCopyAvoidingProtection(entryPoint, trueCode.data(), trueCode.size()); // このアドレスに存在しないと、コード内の相対アドレスがずれる
-			OutputDebugStringW(std::format(L"{}", (void*)entryPoint).c_str());
-			return entryPoint(); // 内部状態が変わるのか知らんけど、中でFF参照がおこる・・・
-		};
-
-		return trueCall;
-	}
 
 	// Instruction code utilities
 
@@ -225,19 +196,6 @@ namespace RecottePluginManager
 		}
 		throw std::format(EMSG_NOT_FOUND_ADDRESS);
 	}
-
-	inline std::vector<unsigned char> FakeLoaderCode(void* address)
-	{
-		static unsigned char templateCode[] =
-		{
-			Instruction::REX(true, false, false, false), 0xB8 + Instruction::Reg32::a, DUMMY_ADDRESS, // mov rax, 0xCCCCCCCCCCCCCCCCh
-			Instruction::REX(true, false, false, false), 0xFF, Instruction::ModRM(4, Instruction::Mode::reg, Instruction::Reg32::a), // jmp rax;
-			Instruction::NOP, Instruction::NOP, Instruction::NOP,
-		};
-		auto code = std::vector(std::begin(templateCode), std::end(templateCode));
-		*(void**)(code.data() + 2) = address;
-		return code;
-	};
 
 
 	// Directory utilities
