@@ -115,7 +115,7 @@ void LoadDotNetLibs()
 	// STEP 2: Initialize and start the .NET Core runtime and Get the load assembly function pointer
 	load_assembly_and_get_function_pointer_fn load_assembly_and_get_function_pointer = nullptr;
 	hostfxr_handle cxt = nullptr;
-	init_fptr(L"C:\\Users\\huser\\Desktop\\mandll\\DotNetLib.runtimeconfig.json", nullptr, &cxt);
+	init_fptr("C:\\Users\\huser\\Documents\\Project\\RecottePlugin\\" L"TestDotNetPlugin\\TestDotNetPlugin.runtimeconfig.json", nullptr, &cxt);
 	get_delegate_fptr(
 		cxt,
 		hostfxr_delegate_type::hdt_load_assembly_and_get_function_pointer,
@@ -123,31 +123,31 @@ void LoadDotNetLibs()
 	close_fptr(cxt);
 
 	// STEP 3: Load managed assembly and Get function pointer to methods
-	component_entry_point_fn hello = nullptr;
+	component_entry_point_fn defaultEntryPoint = nullptr;
 	load_assembly_and_get_function_pointer(
-		L"C:\\Users\\huser\\Desktop\\mandll\\DotNetLib.dll",
-		L"DotNetLib.Lib, DotNetLib",
-		L"Hello",
+		"C:\\Users\\huser\\Documents\\Project\\RecottePlugin\\" L"TestDotNetPlugin\\bin\\Debug\\net5.0\\TestDotNetPlugin.dll",
+		L"TestDotNetPlugin, TestDotNetPlugin",
+		L"EntryPoint",
 		nullptr /*delegate_type_name*/,
 		nullptr,
-		(void**)&hello);
+		(void**)&defaultEntryPoint);
 	struct lib_args { const char_t* message; int number; };
-	void (*custom)(lib_args args) = nullptr;
+	void (*cutomEntryPoint)(lib_args args) = nullptr;
 	load_assembly_and_get_function_pointer(
-		L"C:\\Users\\huser\\Desktop\\mandll\\DotNetLib.dll",
-		L"DotNetLib.Lib, DotNetLib",
+		"C:\\Users\\huser\\Documents\\Project\\RecottePlugin\\" L"TestDotNetPlugin\\bin\\Debug\\net5.0\\TestDotNetPlugin.dll",
+		L"TestDotNetPlugin, TestDotNetPlugin",
 		L"CustomEntryPointUnmanaged" /*method_name*/,
 		UNMANAGEDCALLERSONLY_METHOD,
 		nullptr,
-		(void**)&custom);
+		(void**)&cutomEntryPoint);
 
 	// STEP 4: Run methods
-	for (int i = 0; i < 3; ++i)
-	{
-		lib_args args{ L"from host!", i };
-		hello(&args, sizeof(args)); // manual marshal
-		custom(args); // auto marshal
-	}
+	lib_args args{ L"RecottePlugin", 114514 };
+	defaultEntryPoint(&args, sizeof(args)); // manual marshal
+	cutomEntryPoint(args); // auto marshal
+
+	OutputDebugStringW(std::format(L"{} {} {} {} {}",
+		(void*)init_fptr, (void*)get_delegate_fptr, (void*)close_fptr, (void*)defaultEntryPoint, (void*)cutomEntryPoint).c_str());
 }
 
 void OnAttach()
@@ -194,7 +194,7 @@ void OnAttach()
 			}
 		}
 
-		//LoadDotNetLibs();
+		LoadDotNetLibs();
 	}
 	catch (std::wstring& e)
 	{
