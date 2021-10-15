@@ -159,6 +159,57 @@ void LoadDotNetLibs()
 		(void*)init_fptr, (void*)get_delegate_fptr, (void*)close_fptr, (void*)hello, (void*)custom).c_str());
 }
 
+int __WinMain(decltype(&WinMain) base, HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nShowCmd)
+{
+	//LoadDotNetLibs();
+	return base(hInstance, hPrevInstance, lpCmdLine, nShowCmd);
+}
+
+void Hook_WinMain()
+{
+	using namespace RecottePluginManager::Instruction;
+
+	OutputDebugStringW(std::format(L"a").c_str());
+
+	static decltype(&WinMain) winMain = nullptr;
+	auto target = RecottePluginManager::SearchAddress([&](std::byte* address)
+	{
+		static unsigned char part0[] =
+		{
+			0x4C, 0x8B, 0xC0,                               // mov r8, rax ; lpCmdLine
+			0x44, 0x8B, 0xCB,                               // mov r9d, ebx ; nShowCmd
+			0x33, 0xD2,                                     // xor edx, edx ; hPrevInstance
+			0x48, 0x8D, 0x0D, /* 0x1F, 0x1F, 0xBD, 0xFF, */ // lea rcx, cs:140000000h ; hInstance
+		};
+		if (0 != memcmp(address, part0, sizeof(part0))) return false;
+		address += sizeof(part0);
+		auto winMainOffset = *(std::uint32_t*)address;
+		address += sizeof(std::uint32_t);
+
+		static unsigned char part1[] =
+		{
+			0xE8, 0x9A, 0xEB, 0xC2, 0xFF,                   // call WinMain
+		};
+		address += sizeof(part1);
+		winMain = RecottePluginManager::Offset<decltype(WinMain)>(address, winMainOffset);
+
+		return true;
+	});
+	OutputDebugStringW(std::format(L"{}", (void*)target).c_str());
+	unsigned char part3[] =
+	{
+		REX(true, false, false, false), 0xB8 + Reg32::a, DUMMY_ADDRESS, // mov rax, 0FFFFFFFFFFFFFFFFh
+		0xFF, ModRM(2, Mode::reg, Reg32::a), // call rax
+		NOP, // nops
+	};
+	static auto hook = [](HINSTANCE i, HINSTANCE pi, LPSTR m, int s) { return __WinMain(winMain, i, pi, m, s); };
+	*(void**)(&part3[2]) = &hook;
+	RecottePluginManager::MemoryCopyAvoidingProtection(target, part3, sizeof(part3));
+
+	// やっぱりなんかエラー出るンゴ
+}
+
+
 void OnAttach()
 {
 	static decltype(&CreateWindowExW) createWindowExW = RecottePluginManager::OverrideIATFunction<decltype(&CreateWindowExW)>("user32.dll", "CreateWindowExW", [](auto ...args) { return _CreateWindowExW(createWindowExW, args...); });
@@ -166,6 +217,8 @@ void OnAttach()
 	auto pluginFiles = std::map<std::filesystem::path, void (*)(HINSTANCE)>();
 	try
 	{
+		Hook_WinMain();
+
 		for (auto pluginFile : std::filesystem::directory_iterator(RecottePluginManager::ResolvePluginPath()))
 		{
 			auto s = pluginFile.path().extension().string();
@@ -182,13 +235,6 @@ void OnAttach()
 
 			pluginFiles[pluginFile] = callback;
 		}
-
-		static std::function<std::int64_t()> main = RecottePluginManager::OverrideWinMain([]
-		{
-			OutputDebugStringW(L"HOGEHOGE\n");
-			return main();
-		});
-		//LoadDotNetLibs();
 	}
 	catch (std::wstring& e)
 	{
