@@ -183,7 +183,12 @@ void OnAttach()
 			pluginFiles[pluginFile] = callback;
 		}
 
-		LoadDotNetLibs();
+		static std::function<std::int64_t()> main = RecottePluginManager::OverrideWinMain([]
+		{
+			OutputDebugStringW(L"HOGEHOGE\n");
+			return main();
+		});
+		//LoadDotNetLibs();
 	}
 	catch (std::wstring& e)
 	{

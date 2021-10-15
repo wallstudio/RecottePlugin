@@ -18,6 +18,7 @@ namespace RecottePluginManager
 	const auto EMSG_NOT_FOUND_PLUGIN_DIR_UNKNOWN = L"ユーザーフォルダが見つけられません";
 
 
+	// (T*)((char*)base + rva)
 	template<typename T = void>
 	T* Offset(void* base, SIZE_T rva)
 	{
@@ -41,6 +42,14 @@ namespace RecottePluginManager
 		return str;
 	}
 
+	inline void MemoryCopyAvoidingProtection(void* dst, const void* src, size_t size)
+	{
+		DWORD oldrights, newrights = PAGE_EXECUTE_READWRITE;
+		VirtualProtect(dst, size, newrights, &oldrights);
+		memcpy(dst, src, size);
+		VirtualProtect(dst, size, oldrights, &newrights);
+	}
+
 
 	// Hook utilities
 
@@ -51,6 +60,7 @@ namespace RecottePluginManager
 		const auto EMSG_NOT_FOUND_DLL = L"システムライブラリを見つけられませんでした\r\n{}";
 		const auto EMSG_NOT_FOUND_IAT = L"システムライブラリ内機能を見つけられませんでした\r\n{}";
 
+		// ApplicationExeのImageBaseからの相対アドレス（オフセット）を解決する
 		template<typename T>
 		T* RvaToVa(SIZE_T offset) { return Offset<T>(GetModuleHandleW(nullptr), offset); }
 
@@ -79,40 +89,13 @@ namespace RecottePluginManager
 			throw std::format(EMSG_NOT_FOUND_FUNC_IN_DLL, RecottePluginManager::AsciiToWide(moduleName), RecottePluginManager::AsciiToWide(functionName));
 		}
 
-		inline FARPROC LookupFunctionFromWin32Api(const std::string& moduleName, const std::string& functionName)
-		{
-			static std::map<std::string, FARPROC> baseFunctions = std::map<std::string, FARPROC>();
-
-			auto id = std::format("{0}::{1}", moduleName, functionName);
-			if (!baseFunctions.contains(id))
-			{
-				auto module = GetModuleHandleA(moduleName.c_str());
-				if (module == nullptr) throw std::format(EMSG_NOT_FOUND_DLL, RecottePluginManager::AsciiToWide(id));
-
-				auto function = GetProcAddress(module, functionName.c_str());
-				if (function == nullptr) throw std::format(EMSG_NOT_FOUND_IAT, RecottePluginManager::AsciiToWide(id));
-
-				baseFunctions[id] = function;
-			}
-			return baseFunctions[id];
-		}
-
 		inline void* OverrideIATFunction(const std::string& moduleName, const std::string& functionName, void* newFunction)
 		{
 			auto importAddress = LockupMappedFunctionFromIAT(moduleName, functionName);
-			DWORD oldrights, newrights = PAGE_READWRITE;
-			VirtualProtect(importAddress, sizeof(LPVOID), newrights, &oldrights);
 			auto old = (void*)importAddress->u1.Function;
-			importAddress->u1.Function = (LONGLONG)newFunction; // override function pointer
-			VirtualProtect(importAddress, sizeof(LPVOID), oldrights, &newrights);
+			MemoryCopyAvoidingProtection(&importAddress->u1.Function, newFunction, sizeof(LONGLONG)); // override function pointer
 			return old;
 		}
-	}
-
-	template<typename TDelegate>
-	extern TDelegate LookupFunctionFromWin32Api(const std::string& moduleName, const std::string& functionName)
-	{
-		return reinterpret_cast<TDelegate>(Internal::LookupFunctionFromWin32Api(moduleName, functionName));
 	}
 
 	template<typename TDelegate>
@@ -120,6 +103,38 @@ namespace RecottePluginManager
 	{
 		return (TDelegate)Internal::OverrideIATFunction(moduleName, functionName, newFunction);
 	}
+
+	std::vector<unsigned char> FakeLoaderCode(void* address);
+
+	// 正確にはWinMainではなく、startが取れる
+	// start -> __scrt_common_main_seh -> WinMain
+	inline std::function<std::int64_t()> OverrideWinMain(std::int64_t(*fakeMain)())
+	{
+		// AddressOfEntryPointにfakeMainの相対アドレスをぶっ刺して済ませたいけど、がDWORD（32bit）なので溢れてしまう
+		// また、VirtualAlloc(GetModuleHandleW(nullptr), loader.size(), MEM_COMMIT | MEM_COMMIT, PAGE_EXECUTE_READWRITE); でImageBaseの近くをとろうとしても、確保に失敗する
+		// そこで、AddressOfEntryPointの差す部分を書き換え、書き戻し処理をデリゲートで返す。これは、mainが最初に1回しか呼ばれないことが大前提。
+
+		auto pImgDosHeaders = (IMAGE_DOS_HEADER*)GetModuleHandleW(nullptr);
+		auto pImgNTHeaders = Offset<IMAGE_NT_HEADERS>(pImgDosHeaders, pImgDosHeaders->e_lfanew);
+		auto entryPointRelativeAddress = &pImgNTHeaders->OptionalHeader.AddressOfEntryPoint;
+		auto entryPoint = (decltype(fakeMain))Internal::RvaToVa<void>(*entryPointRelativeAddress);
+
+		auto loader = FakeLoaderCode(fakeMain); // fakeMainの呼出し命令を生成
+		auto trueCode = std::vector<unsigned char>(loader.size());
+		OutputDebugStringW(std::format(L"{}", (void*)entryPoint).c_str());
+		memcpy(trueCode.data(), entryPoint, trueCode.size());
+		MemoryCopyAvoidingProtection(entryPoint, loader.data(), loader.size());
+		auto trueCall = [=]()
+		{
+			MemoryCopyAvoidingProtection(entryPoint, trueCode.data(), trueCode.size()); // このアドレスに存在しないと、コード内の相対アドレスがずれる
+			OutputDebugStringW(std::format(L"{}", (void*)entryPoint).c_str());
+			return entryPoint(); // 内部状態が変わるのか知らんけど、中でFF参照がおこる・・・
+		};
+
+		return trueCall;
+	}
+
+	// Instruction code utilities
 
 	namespace Instruction
 	{
@@ -186,9 +201,6 @@ namespace RecottePluginManager
 		#define DUMMY_ADDRESS 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC
 	}
 
-
-	// Instruction code utilities
-
 	inline std::byte* SearchAddress(std::function<bool(std::byte*)> predicate)
 	{
 		std::byte* address = nullptr;
@@ -211,13 +223,18 @@ namespace RecottePluginManager
 		throw std::format(EMSG_NOT_FOUND_ADDRESS);
 	}
 
-	inline void MemoryCopyAvoidingProtection(void* dst, void* src, size_t size)
+	inline std::vector<unsigned char> FakeLoaderCode(void* address)
 	{
-		DWORD oldrights, newrights = PAGE_EXECUTE_READWRITE;
-		VirtualProtect(dst, size, newrights, &oldrights);
-		memcpy(dst, src, size);
-		VirtualProtect(dst, size, oldrights, &newrights);
-	}
+		static unsigned char templateCode[] =
+		{
+			Instruction::REX(true, false, false, false), 0xB8 + Instruction::Reg32::a, DUMMY_ADDRESS, // mov rax, 0xCCCCCCCCCCCCCCCCh
+			Instruction::REX(true, false, false, false), 0xFF, Instruction::ModRM(4, Instruction::Mode::reg, Instruction::Reg32::a), // jmp rax;
+			Instruction::NOP, Instruction::NOP, Instruction::NOP,
+		};
+		auto code = std::vector(std::begin(templateCode), std::end(templateCode));
+		*(void**)(code.data() + 2) = address;
+		return code;
+	};
 
 
 	// Directory utilities
