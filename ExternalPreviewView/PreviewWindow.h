@@ -31,6 +31,8 @@ protected:
                 onDestroy();
             }
             break;
+        case WM_QUIT:
+            DestroyWindow(hwnd);
         }
     }
 

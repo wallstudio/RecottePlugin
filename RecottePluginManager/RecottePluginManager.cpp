@@ -242,7 +242,7 @@ void OnDetach()
 
 		for (auto& [pluginFile, module] : g_Plugins)
 		{
-			FreeLibrary(module);
+			//FreeLibrary(module); // WaitForSingleObjectが返ってこないので（どうせアプリごと消えるだろうからいいか…）
 		}
 		g_Plugins.clear();
 	}
