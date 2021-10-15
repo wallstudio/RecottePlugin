@@ -162,6 +162,7 @@ void LoadDotNetLibs()
 int __WinMain(decltype(&WinMain) base, HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nShowCmd)
 {
 	//LoadDotNetLibs();
+	OutputDebugStringW(L"Fake WinMain");
 	return base(hInstance, hPrevInstance, lpCmdLine, nShowCmd);
 }
 
@@ -169,46 +170,50 @@ void Hook_WinMain()
 {
 	using namespace RecottePluginManager::Instruction;
 
-	OutputDebugStringW(std::format(L"a").c_str());
-
+	static HINSTANCE hInstance = (HINSTANCE)0x140000000;
 	static decltype(&WinMain) winMain = nullptr;
+	static unsigned char part[] =
+	{
+		0x4C, 0x8B, 0xC0,                               // mov r8, rax ; lpCmdLine
+		0x44, 0x8B, 0xCB,                               // mov r9d, ebx ; nShowCmd
+	};
 	auto target = RecottePluginManager::SearchAddress([&](std::byte* address)
 	{
+		if (0 != memcmp(address, part, sizeof(part))) return false;
+		address += sizeof(part);
+
 		static unsigned char part0[] =
 		{
-			0x4C, 0x8B, 0xC0,                               // mov r8, rax ; lpCmdLine
-			0x44, 0x8B, 0xCB,                               // mov r9d, ebx ; nShowCmd
 			0x33, 0xD2,                                     // xor edx, edx ; hPrevInstance
 			0x48, 0x8D, 0x0D, /* 0x1F, 0x1F, 0xBD, 0xFF, */ // lea rcx, cs:140000000h ; hInstance
 		};
 		if (0 != memcmp(address, part0, sizeof(part0))) return false;
 		address += sizeof(part0);
-		auto winMainOffset = *(std::uint32_t*)address;
-		address += sizeof(std::uint32_t);
+		auto hInstanceOffset = *(std::int32_t*)address;
+		address += sizeof(std::int32_t);
+		//hInstance = RecottePluginManager::Offset<HINSTANCE>(address, hInstanceOffset);
 
 		static unsigned char part1[] =
 		{
-			0xE8, 0x9A, 0xEB, 0xC2, 0xFF,                   // call WinMain
+			0xE8, /* 0x9A, 0xEB, 0xC2, 0xFF, */             // call WinMain
 		};
 		address += sizeof(part1);
+		auto winMainOffset = *(std::int32_t*)address;
+		address += sizeof(std::int32_t);
 		winMain = RecottePluginManager::Offset<decltype(WinMain)>(address, winMainOffset);
 
 		return true;
 	});
-	OutputDebugStringW(std::format(L"{}", (void*)target).c_str());
 	unsigned char part3[] =
 	{
 		REX(true, false, false, false), 0xB8 + Reg32::a, DUMMY_ADDRESS, // mov rax, 0FFFFFFFFFFFFFFFFh
 		0xFF, ModRM(2, Mode::reg, Reg32::a), // call rax
-		NOP, // nops
+		NOP, NOP, NOP, NOP, // nops
 	};
-	static auto hook = [](HINSTANCE i, HINSTANCE pi, LPSTR m, int s) { return __WinMain(winMain, i, pi, m, s); };
-	*(void**)(&part3[2]) = &hook;
-	RecottePluginManager::MemoryCopyAvoidingProtection(target, part3, sizeof(part3));
-
-	// やっぱりなんかエラー出るンゴ
+	static decltype(&WinMain) hook = [](HINSTANCE _, HINSTANCE __, LPSTR m, int s) { return __WinMain(winMain, hInstance, nullptr, m, s); };
+	*(void**)(&part3[2]) = hook;
+	RecottePluginManager::MemoryCopyAvoidingProtection(target + sizeof(part), part3, sizeof(part3));
 }
-
 
 void OnAttach()
 {
