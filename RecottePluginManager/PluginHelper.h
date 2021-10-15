@@ -92,8 +92,11 @@ namespace RecottePluginManager
 		inline void* OverrideIATFunction(const std::string& moduleName, const std::string& functionName, void* newFunction)
 		{
 			auto importAddress = LockupMappedFunctionFromIAT(moduleName, functionName);
+			DWORD oldrights, newrights = PAGE_READWRITE;
+			VirtualProtect(importAddress, sizeof(LPVOID), newrights, &oldrights);
 			auto old = (void*)importAddress->u1.Function;
-			MemoryCopyAvoidingProtection(&importAddress->u1.Function, newFunction, sizeof(LONGLONG)); // override function pointer
+			importAddress->u1.Function = (LONGLONG)newFunction; // override function pointer
+			VirtualProtect(importAddress, sizeof(LPVOID), oldrights, &newrights);
 			return old;
 		}
 	}
@@ -198,7 +201,7 @@ namespace RecottePluginManager
 
 		const unsigned char NOP = 0x90;
 
-		#define DUMMY_ADDRESS 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC
+#define DUMMY_ADDRESS 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC
 	}
 
 	inline std::byte* SearchAddress(std::function<bool(std::byte*)> predicate)
