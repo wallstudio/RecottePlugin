@@ -8,8 +8,9 @@ RecotteStudioのプラグインです。
 
 ## 対応バージョン
 
-- RecotteStudio v1.4.7.0
+- RecotteStudio v1.5.1.7
 - RecotteStudio v1.4.8.0
+- RecotteStudio v1.4.7.0
 
 ## インストール方法
 
